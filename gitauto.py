@@ -133,7 +133,9 @@ Changes:
 {diff[:3000]}"""
                     }]
                 )
-                return message.content[0].text.strip()
+                result = message.content[0].text.strip()
+                print(f"\n[DEBUG] Anthropic AI generated message:\n{result}\n")
+                return result
 
             elif provider == 'openai':
                 if not openai:
@@ -150,7 +152,9 @@ Changes:
                     temperature=0.3,
                     n=1,
                 )
-                return response.choices[0].message.content.strip()
+                result = response.choices[0].message.content.strip()
+                print(f"\n[DEBUG] OpenAI generated message:\n{result}\n")
+                return result
 
             elif provider == 'gemini':
                 self.print_warning("Google Gemini integration is not implemented yet.")
@@ -234,9 +238,14 @@ Changes:
 
         if use_ai:
             diff = self.get_diff()
-            if diff:
+            if not diff.strip():
+                self.print_warning("No staged or unstaged changes found. Cannot generate commit message.")
+                commit_message = None
+            else:
                 commit_message = self.generate_commit_message(diff)
-                if commit_message:
+                if not commit_message:
+                    self.print_warning("AI failed to generate commit message.")
+                else:
                     print(f"\n{Colors.GREEN}AI Generated:{Colors.END} {commit_message}")
                     use_generated = input(f"{Colors.CYAN}Use this message? (y/n): {Colors.END}").strip().lower()
                     if use_generated != 'y':
