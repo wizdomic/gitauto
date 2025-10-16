@@ -103,7 +103,7 @@ git commit -m "Initial commit" --quiet
 print_success "Git add and commit working"
 
 print_info "Test 9: Checking gitauto script permissions"
-GITAUTO_PATH=$(which gitauto)
+GITAUTO_PATH=$(command -v gitauto)
 if [ -x "$GITAUTO_PATH" ]; then
     print_success "gitauto is executable"
 else

@@ -7,10 +7,19 @@ import json
 from pathlib import Path
 from typing import Optional, List
 
+# Try importing supported AI SDKs
 try:
     import anthropic
 except ImportError:
     anthropic = None
+
+try:
+    import openai
+except ImportError:
+    openai = None
+
+# Placeholder for Gemini (no official SDK yet)
+gemini = None
 
 class Colors:
     HEADER = '\033[95m'
@@ -26,24 +35,30 @@ class GitAuto:
     def __init__(self):
         self.config_dir = Path.home() / '.gitauto'
         self.config_file = self.config_dir / 'config.json'
-        self.api_key = self.load_api_key()
+        self.config = self.load_config()
 
-    def load_api_key(self) -> Optional[str]:
+    def load_config(self) -> dict:
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r') as f:
-                    config = json.load(f)
-                    return config.get('anthropic_api_key')
-            except:
+                    return json.load(f)
+            except Exception:
                 pass
-        return os.getenv('ANTHROPIC_API_KEY')
+        # fallback empty config
+        return {}
 
-    def save_api_key(self, api_key: str):
+    def save_config(self, config: dict):
         self.config_dir.mkdir(exist_ok=True)
         with open(self.config_file, 'w') as f:
-            json.dump({'anthropic_api_key': api_key}, f)
+            json.dump(config, f)
         os.chmod(self.config_file, 0o600)
-        self.api_key = api_key
+        self.config = config
+
+    def get_api_key(self) -> Optional[str]:
+        return self.config.get('api_key')
+
+    def get_provider(self) -> Optional[str]:
+        return self.config.get('provider')
 
     def print_header(self, text: str):
         print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.END}")
@@ -88,36 +103,62 @@ class GitAuto:
         return output if success else ""
 
     def generate_commit_message(self, diff: str) -> Optional[str]:
-        if not self.api_key:
-            self.print_warning("No API key found. AI commit generation disabled.")
+        api_key = self.get_api_key()
+        provider = self.get_provider()
+
+        if not api_key or not provider:
+            self.print_warning("No AI provider or API key configured. AI commit generation disabled.")
             return None
 
-        if not anthropic:
-            self.print_warning("Anthropic library not installed. AI commit generation disabled.")
-            return None
+        self.print_info(f"Using AI provider: {provider}")
 
         try:
-            client = anthropic.Anthropic(api_key=self.api_key)
-
-            self.print_info("Generating commit message with AI...")
-
-            message = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=500,
-                messages=[{
-                    "role": "user",
-                    "content": f"""Generate a concise, clear git commit message for these changes.
+            if provider == 'anthropic':
+                if not anthropic:
+                    self.print_warning("Anthropic library not installed.")
+                    return None
+                client = anthropic.Anthropic(api_key=api_key)
+                self.print_info("Generating commit message with Anthropic Claude...")
+                message = client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=500,
+                    messages=[{
+                        "role": "user",
+                        "content": f"""Generate a concise, clear git commit message for these changes.
 Follow conventional commits format (type: description).
 Types: feat, fix, docs, style, refactor, test, chore.
 Keep it under 72 characters.
 
 Changes:
 {diff[:3000]}"""
-                }]
-            )
+                    }]
+                )
+                return message.content[0].text.strip()
 
-            commit_msg = message.content[0].text.strip()
-            return commit_msg
+            elif provider == 'openai':
+                if not openai:
+                    self.print_warning("OpenAI library not installed.")
+                    return None
+                openai.api_key = api_key
+                self.print_info("Generating commit message with OpenAI GPT...")
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "user", "content": f"Generate a concise git commit message using conventional commits format for these changes:\n\n{diff[:3000]}"}
+                    ],
+                    max_tokens=100,
+                    temperature=0.3,
+                    n=1,
+                )
+                return response.choices[0].message.content.strip()
+
+            elif provider == 'gemini':
+                self.print_warning("Google Gemini integration is not implemented yet.")
+                return None
+
+            else:
+                self.print_warning(f"Unknown AI provider '{provider}'.")
+                return None
         except Exception as e:
             self.print_error(f"AI generation failed: {str(e)}")
             return None
@@ -185,7 +226,7 @@ Changes:
         print(f"\n{Colors.BOLD}Step 2: Commit Message{Colors.END}")
 
         use_ai = False
-        if self.api_key and anthropic:
+        if self.get_api_key() and self.get_provider():
             use_ai_input = input(f"{Colors.CYAN}Generate commit message with AI? (y/n): {Colors.END}").strip().lower()
             use_ai = use_ai_input == 'y'
 
@@ -271,14 +312,20 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == 'setup':
         gitauto = GitAuto()
         print(f"{Colors.HEADER}{Colors.BOLD}GitAuto Setup{Colors.END}\n")
-        print("To enable AI-powered commit messages, provide your Anthropic API key.")
-        print("Get one at: https://console.anthropic.com/")
-        api_key = input(f"\n{Colors.CYAN}Enter Anthropic API key (or leave empty to skip): {Colors.END}").strip()
-        if api_key:
-            gitauto.save_api_key(api_key)
-            gitauto.print_success("API key saved successfully!")
+        print("To enable AI-powered commit messages, select your AI provider and provide your API key.")
+        print("Supported providers: anthropic, openai, gemini (gemini not implemented)")
+
+        provider = input(f"\n{Colors.CYAN}Enter AI provider (anthropic/openai/gemini) or leave empty to skip: {Colors.END}").strip().lower()
+
+        if provider in ('anthropic', 'openai', 'gemini'):
+            api_key = input(f"{Colors.CYAN}Enter API key for {provider}: {Colors.END}").strip()
+            if api_key:
+                gitauto.save_config({'provider': provider, 'api_key': api_key})
+                gitauto.print_success(f"{provider} API key saved successfully!")
+            else:
+                print("No API key entered. Skipping AI setup.")
         else:
-            print("Skipped API key setup. You can run 'gitauto setup' anytime.")
+            print("Skipped AI provider setup. You can run 'gitauto setup' anytime.")
         sys.exit(0)
 
     gitauto = GitAuto()

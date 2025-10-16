@@ -112,23 +112,37 @@ else
     fi
 fi
 
-# === ADD THIS HERE ===
+# === AI Setup Prompt for multi-provider ===
 print_info "Optional: Enable AI-powered commit messages"
 
 read -p "Would you like to enable AI features now? (y/N): " enable_ai
 
 if [[ "$enable_ai" =~ ^[Yy]$ ]]; then
-    read -p "Enter your Anthropic API key: " api_key
-    CONFIG_DIR="$HOME/.gitauto"
-    mkdir -p "$CONFIG_DIR"
-    echo "$api_key" > "$CONFIG_DIR/api_key"
-    chmod 600 "$CONFIG_DIR/api_key"
-    print_success "API key saved to $CONFIG_DIR/api_key"
+    echo "Supported AI providers:"
+    echo "  1) anthropic (Claude)"
+    echo "  2) openai (GPT)"
+    echo "  3) gemini (coming soon)"
+    read -p "Select AI provider [1-2]: " provider_choice
+
+    case $provider_choice in
+        1) provider="anthropic" ;;
+        2) provider="openai" ;;
+        *) print_error "Invalid choice, skipping AI setup." ;;
+    esac
+
+    if [[ "$provider" == "anthropic" || "$provider" == "openai" ]]; then
+        read -p "Enter your $provider API key: " api_key
+        CONFIG_DIR="$HOME/.gitauto"
+        mkdir -p "$CONFIG_DIR"
+        echo "provider=$provider" > "$CONFIG_DIR/config"
+        echo "api_key=$api_key" >> "$CONFIG_DIR/config"
+        chmod 600 "$CONFIG_DIR/config"
+        print_success "API key and provider saved to $CONFIG_DIR/config"
+    fi
 else
     print_info "You can enable AI features later by running: gitauto setup"
 fi
 # =====================
-
 
 # Install gitauto script
 print_info "Setting up gitauto command..."
@@ -147,7 +161,7 @@ if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
         SHELL_CONFIG="$HOME/.zshrc"
     elif [ -n "$BASH_VERSION" ]; then
         if [ -f "$HOME/.bashrc" ]; then
-            SHELL_CONFIG="$HOME/.bashrc"s
+            SHELL_CONFIG="$HOME/.bashrc"
         elif [ -f "$HOME/.bash_profile" ]; then
             SHELL_CONFIG="$HOME/.bash_profile"
         fi
@@ -179,9 +193,9 @@ echo "  2. Run: gitauto"
 echo "  3. Follow the interactive prompts"
 echo ""
 print_info "Optional: Enable AI-powered commit messages"
-echo "  1. Get an API key from: https://console.anthropic.com/"
+echo "  1. Get an API key from your provider's dashboard"
 echo "  2. Run: gitauto setup"
-echo "  3. Enter your API key"
+echo "  3. Enter your API key and select provider"
 echo ""
 print_info "To test the installation, run:"
 echo "  ./test.sh"
