@@ -265,7 +265,7 @@ Changes:
             self.print_info("Skipped push")
 
         self.print_header("All Done!")
-        self.print_success("Git automation completed successfully")
+        self.print_success("Automation Completed Successfully")
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == 'setup':
