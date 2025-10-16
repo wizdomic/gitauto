@@ -65,7 +65,7 @@ source ~/.bashrc
 
 To use AI-powered commit message generation:
 
-1. Get an API key from [Anthropic Console](https://console.anthropic.com/)
+1. Get an API key from [Anthropic Console](https://console.anthropic.com/) or [OpenAI](https://platform.openai.com/) or from GEMINI(in development)
 2. Run the setup command:
 ```bash
 gitauto setup
@@ -74,7 +74,7 @@ gitauto setup
 
 Alternatively, set the environment variable:
 ```bash
-export ANTHROPIC_API_KEY="your-api-key-here"
+export API_KEY="your-api-key-here"
 ```
 
 ## Usage
@@ -214,7 +214,7 @@ gitauto setup
 pip3 install --user anthropic
 ```
 
-3. Ensure you have an active API key from [Anthropic Console](https://console.anthropic.com/)
+3. Ensure you have an active API key from [Anthropic Console](https://console.anthropic.com/) or or [OpenAI](https://platform.openai.com/) 
 
 ### Python version issues
 
@@ -269,7 +269,7 @@ Planned features:
 
 Built with:
 - [Python](https://www.python.org/) - Core language
-- [Anthropic Claude](https://www.anthropic.com/) - AI commit generation
+- [Anthropic Claude](https://www.anthropic.com/) / or [OpenAI](https://platform.openai.com/) - AI commit generation
 - [Git](https://git-scm.com/) - Version control system
 # gitauto
 # gitauto
