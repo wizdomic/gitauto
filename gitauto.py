@@ -15,8 +15,10 @@ except ImportError:
 
 try:
     import openai
+    from openai import OpenAI
 except ImportError:
     openai = None
+    OpenAI = None
 
 # Placeholder for Gemini (no official SDK yet)
 gemini = None
@@ -44,7 +46,6 @@ class GitAuto:
                     return json.load(f)
             except Exception:
                 pass
-        # fallback empty config
         return {}
 
     def save_config(self, config: dict):
@@ -133,17 +134,15 @@ Changes:
 {diff[:3000]}"""
                     }]
                 )
-                result = message.content[0].text.strip()
-                print(f"\n[DEBUG] Anthropic AI generated message:\n{result}\n")
-                return result
+                return message.content[0].text.strip()
 
             elif provider == 'openai':
-                if not openai:
-                    self.print_warning("OpenAI library not installed.")
+                if not OpenAI:
+                    self.print_warning("OpenAI library not installed or outdated.")
                     return None
-                openai.api_key = api_key
+                client = OpenAI(api_key=api_key)
                 self.print_info("Generating commit message with OpenAI GPT...")
-                response = openai.ChatCompletion.create(
+                response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[
                         {"role": "user", "content": f"Generate a concise git commit message using conventional commits format for these changes:\n\n{diff[:3000]}"}
@@ -152,9 +151,7 @@ Changes:
                     temperature=0.3,
                     n=1,
                 )
-                result = response.choices[0].message.content.strip()
-                print(f"\n[DEBUG] OpenAI generated message:\n{result}\n")
-                return result
+                return response.choices[0].message.content.strip()
 
             elif provider == 'gemini':
                 self.print_warning("Google Gemini integration is not implemented yet.")
@@ -238,14 +235,9 @@ Changes:
 
         if use_ai:
             diff = self.get_diff()
-            if not diff.strip():
-                self.print_warning("No staged or unstaged changes found. Cannot generate commit message.")
-                commit_message = None
-            else:
+            if diff:
                 commit_message = self.generate_commit_message(diff)
-                if not commit_message:
-                    self.print_warning("AI failed to generate commit message.")
-                else:
+                if commit_message:
                     print(f"\n{Colors.GREEN}AI Generated:{Colors.END} {commit_message}")
                     use_generated = input(f"{Colors.CYAN}Use this message? (y/n): {Colors.END}").strip().lower()
                     if use_generated != 'y':
