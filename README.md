@@ -24,7 +24,7 @@ A powerful Python-based command-line tool that streamlines your git workflow wit
 
 1. Clone or download this repository:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/wizdomic/gitauto.git
 cd gitauto
 ```
 
