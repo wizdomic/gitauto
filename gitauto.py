@@ -313,24 +313,29 @@ Changes:
         self.print_success("Automation Completed Successfully")
 
 def main():
-    if len(sys.argv) > 1 and sys.argv[1] == 'setup':
-        gitauto = GitAuto()
-        print(f"{Colors.HEADER}{Colors.BOLD}GitAuto Setup{Colors.END}\n")
-        print("To enable AI-powered commit messages, select your AI provider and provide your API key.")
-        print("Supported providers: anthropic, openai, gemini (gemini not implemented)")
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ('-v', '--version'):
+            print(f"GitAuto v{__version__}")
+            sys.exit(0)
 
-        provider = input(f"\n{Colors.CYAN}Enter AI provider (anthropic/openai/gemini) or leave empty to skip: {Colors.END}").strip().lower()
+        if sys.argv[1] == 'setup':
+            gitauto = GitAuto()
+            print(f"{Colors.HEADER}{Colors.BOLD}GitAuto Setup{Colors.END}\n")
+            print("To enable AI-powered commit messages, select your AI provider and provide your API key.")
+            print("Supported providers: anthropic, openai, gemini (gemini not implemented)")
 
-        if provider in ('anthropic', 'openai', 'gemini'):
-            api_key = input(f"{Colors.CYAN}Enter API key for {provider}: {Colors.END}").strip()
-            if api_key:
-                gitauto.save_config({'provider': provider, 'api_key': api_key})
-                gitauto.print_success(f"{provider} API key saved successfully!")
+            provider = input(f"\n{Colors.CYAN}Enter AI provider (anthropic/openai/gemini) or leave empty to skip: {Colors.END}").strip().lower()
+
+            if provider in ('anthropic', 'openai', 'gemini'):
+                api_key = input(f"{Colors.CYAN}Enter API key for {provider}: {Colors.END}").strip()
+                if api_key:
+                    gitauto.save_config({'provider': provider, 'api_key': api_key})
+                    gitauto.print_success(f"{provider} API key saved successfully!")
+                else:
+                    print("No API key entered. Skipping AI setup.")
             else:
-                print("No API key entered. Skipping AI setup.")
-        else:
-            print("Skipped AI provider setup. You can run 'gitauto setup' anytime.")
-        sys.exit(0)
+                print("Skipped AI provider setup. You can run 'gitauto setup' anytime.")
+            sys.exit(0)
 
     gitauto = GitAuto()
     try:
@@ -341,6 +346,7 @@ def main():
     except Exception as e:
         print(f"\n{Colors.RED}Error: {str(e)}{Colors.END}")
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
