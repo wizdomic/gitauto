@@ -88,6 +88,16 @@ export API_KEY="your-api-key-here"
 
 ## Usage
 
+### After Installing It Perfectly
+
+Run
+
+```bash
+gitauto -v
+```
+
+to check version
+
 ### Basic Workflow
 
 Navigate to any git repository and run:
