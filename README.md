@@ -23,18 +23,21 @@ A powerful Python-based command-line tool that streamlines your git workflow wit
 ### Quick Install (Linux/macOS)
 
 1. Clone or download this repository:
+
 ```bash
 git clone https://github.com/wizdomic/gitauto.git
 cd gitauto
 ```
 
 2. Run the installation script:
+
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
 3. Reload your shell:
+
 ```bash
 source ~/.bashrc  # or ~/.zshrc for zsh users
 ```
@@ -42,11 +45,13 @@ source ~/.bashrc  # or ~/.zshrc for zsh users
 ### Manual Installation
 
 1. Install Python dependencies:
+
 ```bash
 pip3 install -r requirements.txt
 ```
 
 2. Copy the script to your local bin:
+
 ```bash
 mkdir -p ~/.local/bin
 cp gitauto.py ~/.local/bin/gitauto
@@ -54,6 +59,7 @@ chmod +x ~/.local/bin/gitauto
 ```
 
 3. Add to PATH (if not already):
+
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
@@ -67,12 +73,15 @@ To use AI-powered commit message generation:
 
 1. Get an API key from [Anthropic Console](https://console.anthropic.com/) or [OpenAI](https://platform.openai.com/) or from GEMINI(in development)
 2. Run the setup command:
+
 ```bash
 gitauto setup
 ```
+
 3. Enter your API key when prompted
 
 Alternatively, set the environment variable:
+
 ```bash
 export API_KEY="your-api-key-here"
 ```
@@ -82,6 +91,7 @@ export API_KEY="your-api-key-here"
 ### Basic Workflow
 
 Navigate to any git repository and run:
+
 ```bash
 gitauto
 ```
@@ -89,14 +99,17 @@ gitauto
 The tool will guide you through:
 
 1. **File Selection**: Choose which files to add
+
    - Enter `.` for all changes
    - Or specify individual files: `file1.py file2.py`
 
 2. **Commit Message**:
+
    - Use AI to generate a commit message (if configured)
    - Or write your own custom message
 
 3. **Branch Management**:
+
    - Stay on current branch
    - Switch to existing branch
    - Create and switch to new branch
@@ -104,52 +117,6 @@ The tool will guide you through:
 4. **Push Changes**:
    - Push to remote repository
    - Automatically set upstream if needed
-
-### Example Session
-
-```bash
-$ gitauto
-
-============================================================
-                  Git Automation Tool
-============================================================
-
-ℹ Remote: git@github.com:user/repo.git
-ℹ Current branch: main
-
-Changes detected:
- M gitauto.py
-?? test.sh
-
-Step 1: Add Files
-Files to add (. for all, or specific files): .
-✓ Added files: .
-
-Step 2: Commit Message
-Generate commit message with AI? (y/n): y
-ℹ Generating commit message with AI...
-AI Generated: feat: add interactive branch management
-Use this message? (y/n): y
-✓ Committed: feat: add interactive branch management
-
-Step 3: Branch Management
-Available branches:
-  → main
-    develop
-    feature/new-ui
-Switch branch? (leave empty to stay on 'main'):
-
-Step 4: Push Changes
-Push to remote? (y/n): y
-ℹ Pushing to origin/main...
-✓ Successfully pushed to origin/main
-
-============================================================
-                        All Done!
-============================================================
-
-✓ Git automation completed successfully
-```
 
 ## Testing
 
@@ -187,16 +154,27 @@ When using AI generation, commits follow the [Conventional Commits](https://www.
 
 ## Troubleshooting
 
+if it shows any error with python packages, just create a virtual environment with command :
+python3 -m venv venv
+source venv/bin/activate
+
+### Now command:
+
+--> chmod +x install.sh ### it will install python file containing system configuration
+--> ./install.sh ### continue with configuration
+
 ### Command not found
 
 If `gitauto` is not recognized:
 
 1. Ensure `~/.local/bin` is in your PATH:
+
 ```bash
 echo $PATH | grep ".local/bin"
 ```
 
 2. If not, add it:
+
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
@@ -205,20 +183,23 @@ source ~/.bashrc
 ### AI generation not working
 
 1. Verify API key is set:
+
 ```bash
 gitauto setup
 ```
 
 2. Check anthropic library is installed:
+
 ```bash
 pip3 install --user anthropic
 ```
 
-3. Ensure you have an active API key from [Anthropic Console](https://console.anthropic.com/) or or [OpenAI](https://platform.openai.com/) 
+3. Ensure you have an active API key from [Anthropic Console](https://console.anthropic.com/) or or [OpenAI](https://platform.openai.com/)
 
 ### Python version issues
 
 Ensure Python 3.8+:
+
 ```bash
 python3 --version
 ```
@@ -250,6 +231,7 @@ MIT License - feel free to use and modify as needed.
 ## Support
 
 For issues, questions, or suggestions:
+
 - Create an issue in the repository
 - Check existing issues for solutions
 - Review the troubleshooting section above
@@ -257,6 +239,7 @@ For issues, questions, or suggestions:
 ## Roadmap
 
 Planned features:
+
 - [ ] Support for multiple AI providers (OpenAI, local models)
 - [ ] Git hooks integration
 - [ ] Team collaboration features
@@ -268,10 +251,15 @@ Planned features:
 ## Credits
 
 Built with:
+
 - [Python](https://www.python.org/) - Core language
 - [Anthropic Claude](https://www.anthropic.com/) / or [OpenAI](https://platform.openai.com/) - AI commit generation
 - [Git](https://git-scm.com/) - Version control system
+
 # gitauto
+
 # gitauto
+
 # gitauto
+
 # gitauto
