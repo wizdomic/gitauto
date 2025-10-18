@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Optional, List
 
+__version__ = "1.0.0"
+
 # Try importing supported AI SDKs
 try:
     import anthropic
@@ -184,7 +186,8 @@ Changes:
         return output if success else "No remote configured"
 
     def run(self):
-        self.print_header("Git Automation Tool")
+        self.print_header(f"Git Automation Tool v{__version__}")
+
 
         if not self.is_git_repo():
             self.print_error("Not a git repository! Please run 'git init' first.")
