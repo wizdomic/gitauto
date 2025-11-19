@@ -1,16 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------------------
-# Colors & helpers
-# ---------------------------
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-print_header()  { echo -e "\n${BLUE}================================================================${NC}\n  $1\n${BLUE}================================================================${NC}\n"; }
+print_header() { echo -e "\n${BLUE}================================================================${NC}\n  $1\n${BLUE}================================================================${NC}\n"; }
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_error()   { echo -e "${RED}✗ $1${NC}"; }
 print_info()    { echo -e "${YELLOW}→ $1${NC}"; }
@@ -58,7 +55,7 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
-PY_VER="$($PYTHON -c 'import sys; print(f\"{sys.version_info.major}.{sys.version_info.minor}\")')"
+PY_VER="$($PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 print_success "Python found (version $PY_VER)"
 
 # ---------------------------
@@ -96,36 +93,32 @@ fi
 print_success "requirements.txt found"
 
 # ---------------------------
-# Virtualenv / Dependency install
+# Virtual environment setup
 # ---------------------------
+read -p "Do you want to use a virtual environment? (y/N): " use_venv
 VENV_DIR="$HOME/.gitauto_venv"
-VENV_ACTIVE="no"
 
-if [ -n "${VIRTUAL_ENV:-}" ]; then
-    VENV_ACTIVE="yes"
-fi
-
-# Debian/Ubuntu external-managed workaround
-if [ "$OS" = "linux" ] && ! [ "$VENV_ACTIVE" = "yes" ]; then
-    print_info "Creating local virtualenv at $VENV_DIR..."
-    $PYTHON -m venv "$VENV_DIR"
-    VENV_ACTIVE="yes"
-fi
-
-if [ "$VENV_ACTIVE" = "yes" ]; then
-    # Activate venv
-    # shellcheck disable=SC1091
+if [[ "$use_venv" =~ ^[Yy]$ ]]; then
+    if [ ! -d "$VENV_DIR" ]; then
+        print_info "Creating virtual environment at $VENV_DIR..."
+        $PYTHON -m venv "$VENV_DIR"
+    fi
+    print_info "Activating virtual environment..."
+    # shellcheck disable=SC1090
     source "$VENV_DIR/bin/activate"
-    print_info "Installing dependencies inside virtualenv..."
-    pip install --upgrade pip
-    pip install -r requirements.txt
-    print_success "Dependencies installed in virtualenv"
+    print_success "Virtual environment activated"
+    PIP="pip"
 else
-    # Safe --user install for other OS
-    print_info "Installing dependencies to user site..."
-    $PIP install --user -r requirements.txt
-    print_success "Dependencies installed to user site"
+    print_info "Skipping virtual environment, using user-site install"
 fi
+
+# ---------------------------
+# Install Python dependencies
+# ---------------------------
+print_info "Installing Python dependencies..."
+$PIP install --upgrade pip setuptools wheel
+$PIP install -r requirements.txt
+print_success "Python dependencies installed"
 
 # ---------------------------
 # Install locations
@@ -194,19 +187,19 @@ if [[ ":$PATH:" != *":$USER_LOCAL_BIN:"* ]]; then
 fi
 
 # ---------------------------
-# AI Setup (JSON)
+# AI Setup (OpenAI, Anthropic, Gemini)
 # ---------------------------
 print_info "Optional: Enable AI-powered commit messages"
 read -p "Enable AI now? (y/N): " enable_ai
 if [[ "$enable_ai" =~ ^[Yy]$ ]]; then
     echo ""
-    echo "1) anthropic (Claude)"
-    echo "2) openai (GPT)"
-    echo "3) gemini (Google AI)"
+    echo "1) OpenAI (GPT)"
+    echo "2) Anthropic (Claude)"
+    echo "3) Google Gemini"
     read -p "Select AI provider [1-3]: " choice
     case $choice in
-        1) provider="anthropic" ;;
-        2) provider="openai" ;;
+        1) provider="openai" ;;
+        2) provider="anthropic" ;;
         3) provider="gemini" ;;
         *) print_error "Invalid choice"; provider="" ;;
     esac
@@ -242,7 +235,6 @@ if [ -d "$repo_path/.git" ]; then
     # pre-commit hook
     cat > "$hook_dir/pre-commit" <<'EOF'
 #!/usr/bin/env bash
-# Auto-run GitAuto before commit
 if command -v gitauto >/dev/null 2>&1; then
     gitauto --pre-commit
 fi
@@ -252,7 +244,6 @@ EOF
     # commit-msg hook
     cat > "$hook_dir/commit-msg" <<'EOF'
 #!/usr/bin/env bash
-# Validate or auto-generate commit messages using GitAuto
 if command -v gitauto >/dev/null 2>&1; then
     gitauto --commit-msg "$1"
 fi
@@ -271,5 +262,4 @@ if [ -n "${SYSTEM_TARGET:-}" ]; then
     print_success "Also installed system-wide: $SYSTEM_TARGET"
 fi
 print_info "Navigate to a git repo and run: gitauto"
-
 exit 0
