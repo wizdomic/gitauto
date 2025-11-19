@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Optional, List
 
-__version__ = "1.1.1"  # bumped
+__version__ = "2.0.0"
 
 # ----------------------------
 # Lazy imports
@@ -52,7 +52,7 @@ class GitAuto:
         self.interactive = sys.stdin.isatty()
 
     # ----------------------------
-    # Config
+    # Config management
     # ----------------------------
     def load_config(self) -> dict:
         if self.config_file.exists():
@@ -77,7 +77,7 @@ class GitAuto:
         return self.config.get('provider')
 
     # ----------------------------
-    # Printing helpers
+    # Print helpers
     # ----------------------------
     def print_header(self, text: str):
         print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.END}")
@@ -102,7 +102,9 @@ class GitAuto:
     def run_command(self, command: List[str], capture_output=True) -> tuple:
         try:
             if capture_output:
-                result = subprocess.run(command, capture_output=True, text=True, check=False)
+                result = subprocess.run(
+                    command, capture_output=True, text=True, check=False
+                )
                 return result.returncode == 0, result.stdout.strip(), result.stderr.strip()
             else:
                 result = subprocess.run(command, check=False)
@@ -169,8 +171,11 @@ class GitAuto:
                 message = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=500,
-                    messages=[{"role": "user",
-                               "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"}])
+                    messages=[{
+                        "role": "user",
+                        "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"
+                    }]
+                )
                 return message.content[0].text.strip()
 
             elif provider == 'openai':
@@ -184,41 +189,46 @@ class GitAuto:
                     model="gpt-4o-mini",
                     messages=[{"role": "user",
                                "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"}],
-                    max_tokens=100, temperature=1.0, n=1)
+                    max_tokens=100,
+                    temperature=1.0,
+                    n=1,
+                )
                 return response.choices[0].message.content.strip()
 
             elif provider == 'gemini':
-                genai = lazy_import_gemini()
-                if not genai:
-                    # Try installing automatically
+                try:
+                    import google.generativeai as genai
+                except ImportError:
                     try:
+                        import subprocess, sys
+                        self.print_info("Gemini library not found. Installing...")
                         subprocess.check_call(
-                            [sys.executable, "-m", "pip", "install", "google-generativeai"],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        genai = lazy_import_gemini()
-                    except Exception:
+                            [sys.executable, "-m", "pip", "install", "--user", "--quiet", "google-generativeai"]
+                        )
+                        import google.generativeai as genai
+                    except Exception as e:
+                        self.print_error(f"Failed to install Gemini library: {str(e)}")
                         return None
-
-                if not genai:
-                    return None
 
                 genai.configure(api_key=api_key)
                 self.print_info("Generating commit message with Gemini AI...")
                 model = genai.GenerativeModel("gemini-2.5-flash")
                 response = model.generate_content(
-                    f"Generate a concise git commit message for changes:\n{diff[:3000]}")
+                    f"Generate a concise git commit message for changes:\n{diff[:3000]}"
+                )
                 return response.text.strip()
+
 
             else:
                 self.print_warning(f"Unknown AI provider '{provider}'.")
                 return None
 
         except Exception as e:
-            self.print_warning(f"AI generation failed: {e}")
+            self.print_error(f"AI generation failed: {str(e)}")
             return None
 
     # ----------------------------
-    # AI Setup
+    # AI setup
     # ----------------------------
     def setup_ai(self):
         print(f"{Colors.HEADER}{Colors.BOLD}GitAuto AI Setup{Colors.END}\n")
@@ -259,8 +269,17 @@ class GitAuto:
             print(status)
 
         # Add files
-        add_files = "." if not self.interactive else input("Files to add (. for all, or specific files): ").strip() or "."
-        success, _, error = self.run_command(['git', 'add'] + (add_files.split() if add_files != "." else ['.']))
+        if self.interactive:
+            add_files = input("Files to add (. for all, or specific files): ").strip()
+        else:
+            add_files = "."
+        if not add_files:
+            add_files = "."
+        if add_files == ".":
+            success, _, error = self.run_command(['git', 'add', '.'])
+        else:
+            files = add_files.split()
+            success, _, error = self.run_command(['git', 'add'] + files)
         if not success:
             self.print_error(f"Failed to add files: {error}")
             sys.exit(1)
@@ -299,7 +318,7 @@ class GitAuto:
             sys.exit(1)
         self.print_success(f"Committed: {commit_message}")
 
-        # Branch / Push handling (same as before)
+        # Branch
         branches = self.get_branches()
         if branches:
             print(f"{Colors.CYAN}Available branches:{Colors.END}")
@@ -324,15 +343,22 @@ class GitAuto:
                         else:
                             self.print_error(f"Failed to create branch: {error}")
 
+        # Push
+        if self.interactive:
             push = input("Push to remote? (y/n): ").strip().lower()
             if push == 'y':
                 self.print_info(f"Pushing to origin/{current_branch}...")
-                success, _, _ = self.run_command(['git', 'push', 'origin', current_branch], capture_output=False)
-                if not success:
+                success, output, error = self.run_command(['git', 'push', 'origin', current_branch], capture_output=False)
+                if success:
+                    self.print_success(f"Successfully pushed to origin/{current_branch}")
+                else:
                     upstream = input("Set upstream and push? (y/n): ").strip().lower()
                     if upstream == 'y':
-                        self.run_command(['git', 'push', '--set-upstream', 'origin', current_branch], capture_output=False)
-                self.print_success(f"Pushed to origin/{current_branch}")
+                        success, _, error = self.run_command(['git', 'push', '--set-upstream', 'origin', current_branch], capture_output=False)
+                        if success:
+                            self.print_success("Successfully pushed and set upstream")
+                        else:
+                            self.print_error(f"Failed to push: {error}")
             else:
                 self.print_info("Skipped push")
 
@@ -348,10 +374,22 @@ def main():
             print(f"GitAuto v{__version__}")
             sys.exit(0)
         if sys.argv[1] == 'setup':
-            GitAuto().setup_ai()
+            gitauto = GitAuto()
+            gitauto.setup_ai()
+            sys.exit(0)
+        if sys.argv[1] == '--pre-commit' or sys.argv[1] == '--commit-msg':
+            # Hooks placeholder
             sys.exit(0)
 
-    GitAuto().run()
+    gitauto = GitAuto()
+    try:
+        gitauto.run()
+    except KeyboardInterrupt:
+        print(f"\n\n{Colors.YELLOW}Aborted by user{Colors.END}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n{Colors.RED}Error: {str(e)}{Colors.END}")
+        sys.exit(1)
 
 
 if __name__ == '__main__':
