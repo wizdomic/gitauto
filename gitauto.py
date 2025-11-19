@@ -196,10 +196,24 @@ class GitAuto:
                 return response.choices[0].message.content.strip()
 
             elif provider == 'gemini':
-                genai = lazy_import_gemini()
-                if not genai:
-                    self.print_warning("Gemini library not installed.")
-                    return None
+                try:
+                    import google.generativeai as genai
+                except ImportError:
+                    # Check if running inside the virtualenv
+                    if sys.prefix.startswith(str(Path.home() / ".gitauto_venv")):
+                        self.print_info("Gemini library not found. Installing automatically in virtualenv...")
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", "google-generativeai"])
+                        import google.generativeai as genai
+                    else:
+                        self.print_error(
+                            "Gemini library not installed and cannot install in system Python.\n"
+                            "Activate GitAuto virtualenv first:\n"
+                            "    source ~/.gitauto_venv/bin/activate\n"
+                            "Then run gitauto again."
+                        )
+                        return None
+
+                # Configure and use Gemini
                 genai.configure(api_key=api_key)
                 self.print_info("Generating commit message with Gemini AI...")
                 model = genai.GenerativeModel("gemini-2.5-flash")
@@ -207,6 +221,8 @@ class GitAuto:
                     f"Generate a concise git commit message for changes:\n{diff[:3000]}"
                 )
                 return response.text.strip()
+
+
 
             else:
                 self.print_warning(f"Unknown AI provider '{provider}'.")
