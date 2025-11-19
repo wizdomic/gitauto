@@ -196,20 +196,33 @@ class GitAuto:
                 return response.choices[0].message.content.strip()
 
             elif provider == 'gemini':
+                import sys, subprocess
+                import venv
+
+                # Path to venv inside config dir
+                venv_dir = self.config_dir / 'gemini_venv'
+                python_exe = sys.executable
+
+                # Create venv if missing
+                if not venv_dir.exists():
+                    self.print_info("Creating virtual environment for Gemini...")
+                    venv.create(venv_dir, with_pip=True)
+
+                # Use venv python
+                venv_python = venv_dir / 'bin' / 'python'
+                venv_pip = [str(venv_python), "-m", "pip"]
+
+                # Install google-generativeai if missing
                 try:
                     import google.generativeai as genai
                 except ImportError:
-                    try:
-                        import subprocess, sys
-                        self.print_info("Gemini library not found. Installing...")
-                        subprocess.check_call(
-                            [sys.executable, "-m", "pip", "install", "--user", "--quiet", "google-generativeai"]
-                        )
-                        import google.generativeai as genai
-                    except Exception as e:
-                        self.print_error(f"Failed to install Gemini library: {str(e)}")
-                        return None
+                    self.print_info("Installing Gemini library in venv...")
+                    subprocess.check_call(
+                        [str(venv_python), "-m", "pip", "install", "--quiet", "google-generativeai"]
+                    )
+                    import google.generativeai as genai
 
+                # Configure and generate
                 genai.configure(api_key=api_key)
                 self.print_info("Generating commit message with Gemini AI...")
                 model = genai.GenerativeModel("gemini-2.5-flash")
