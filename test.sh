@@ -134,5 +134,5 @@ else
 fi
 
 echo ""
-success "All tests passed!"
+success "Congratulation! All tests passed!"
 echo ""
