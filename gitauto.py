@@ -3,6 +3,7 @@
 import os
 import sys
 import subprocess
+import importlib
 import json
 from pathlib import Path
 from typing import Optional, List
@@ -161,14 +162,19 @@ class GitAuto:
         self.print_info(f"Using AI provider: {provider}")
 
         try:
+            # ----------------------------
+            # Anthropic
+            # ----------------------------
             if provider == 'anthropic':
                 anthropic = lazy_import_anthropic()
                 if not anthropic:
                     self.print_warning("Anthropic library not installed.")
                     return None
+
                 client = anthropic.Anthropic(api_key=api_key)
-                self.print_info("Generating commit message with Anthropic Claude...")
-                message = client.messages.create(
+                self.print_info("Generating commit message with Claude...")
+
+                msg = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=500,
                     messages=[{
@@ -176,72 +182,84 @@ class GitAuto:
                         "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"
                     }]
                 )
-                return message.content[0].text.strip()
+                return msg.content[0].text.strip()
 
+            # ----------------------------
+            # OpenAI
+            # ----------------------------
             elif provider == 'openai':
                 openai, OpenAI = lazy_import_openai()
-                if not OpenAI:
-                    self.print_warning("OpenAI library not installed.")
-                    return None
                 client = OpenAI(api_key=api_key)
                 self.print_info("Generating commit message with OpenAI GPT...")
+
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "user",
                                "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"}],
                     max_tokens=100,
-                    temperature=1.0,
-                    n=1,
                 )
                 return response.choices[0].message.content.strip()
 
+            # ----------------------------
+            # Gemini (Cross-platform, isolated venv)
+            # ----------------------------
             elif provider == 'gemini':
-                import sys, subprocess
-                import venv
-
-                # Path to venv inside config dir
-                venv_dir = self.config_dir / 'gemini_venv'
-                python_exe = sys.executable
-
-                # Create venv if missing
-                if not venv_dir.exists():
-                    self.print_info("Creating virtual environment for Gemini...")
-                    venv.create(venv_dir, with_pip=True)
-
-                # Use venv python
-                venv_python = venv_dir / 'bin' / 'python'
-                venv_pip = [str(venv_python), "-m", "pip"]
-
-                # Install google-generativeai if missing
                 try:
-                    import google.generativeai as genai
-                except ImportError:
-                    self.print_info("Installing Gemini library in venv...")
-                    subprocess.check_call(
-                        [str(venv_python), "-m", "pip", "install", "--quiet", "google-generativeai"]
+                    try:
+                        genai = importlib.import_module("google.generativeai")
+                    except ImportError:
+                        self.print_info("Gemini library not found. Preparing isolated environment...")
+
+                        venv_dir = self.config_dir / "venv"
+
+                        # Platform-correct paths
+                        if os.name == "nt":
+                            python_bin = venv_dir / "Scripts" / "python.exe"
+                            site_packages = venv_dir / "Lib" / "site-packages"
+                        else:
+                            python_bin = venv_dir / "bin" / "python"
+                            site_packages = venv_dir / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+
+                        if not venv_dir.exists():
+                            self.print_info("Creating dedicated virtual environment...")
+                            subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
+
+                        self.print_info("Installing google-generativeai into GitAuto venv...")
+                        subprocess.check_call([
+                            str(python_bin), "-m", "pip", "install", "--quiet", "google-generativeai"
+                        ])
+
+                        sys.path.insert(0, str(site_packages))
+                        genai = importlib.import_module("google.generativeai")
+
+                    genai.configure(api_key=api_key)
+                    self.print_info("Generating commit message with Gemini AI...")
+
+                    model = genai.GenerativeModel("gemini-2.5-flash")
+                    response = model.generate_content(
+                        f"Generate a concise git commit message for changes:\n{diff[:3000]}"
                     )
-                    import google.generativeai as genai
 
-                # Configure and generate
-                genai.configure(api_key=api_key)
-                self.print_info("Generating commit message with Gemini AI...")
-                model = genai.GenerativeModel("gemini-2.5-flash")
-                response = model.generate_content(
-                    f"Generate a concise git commit message for changes:\n{diff[:3000]}"
-                )
-                return response.text.strip()
+                    if hasattr(response, "text") and response.text:
+                        return response.text.strip()
 
+                    if hasattr(response, "candidates"):
+                        cand = response.candidates[0]
+                        part = cand.content.parts[0]
+                        return getattr(part, "text", "").strip()
 
-            else:
-                self.print_warning(f"Unknown AI provider '{provider}'.")
-                return None
+                    return "Generated commit message unavailable."
+
+                except Exception as e:
+                    self.print_error(f"Gemini AI generation failed: {e}")
+                    return None
 
         except Exception as e:
-            self.print_error(f"AI generation failed: {str(e)}")
+            self.print_error(f"AI generation failed: {e}")
             return None
 
     # ----------------------------
-    # AI setup
+    # AI Setup
     # ----------------------------
     def setup_ai(self):
         print(f"{Colors.HEADER}{Colors.BOLD}GitAuto AI Setup{Colors.END}\n")
@@ -252,9 +270,9 @@ class GitAuto:
                 self.save_config({"provider": provider, "api_key": api_key})
                 self.print_success(f"{provider} API key saved!")
             else:
-                print("No API key entered. Skipping setup.")
+                print("No API key entered.")
         else:
-            print("Skipped AI setup. You can run 'gitauto setup' later.")
+            print("Skipped AI setup.")
 
     # ----------------------------
     # Main workflow
@@ -274,8 +292,8 @@ class GitAuto:
         if not status:
             self.print_warning("No changes detected!")
             if self.interactive:
-                proceed = input("Continue anyway? (y/n): ").strip().lower()
-                if proceed != 'y':
+                cont = input("Continue anyway? (y/n): ").strip().lower()
+                if cont != "y":
                     sys.exit(0)
         else:
             print(f"\n{Colors.CYAN}Changes detected:{Colors.END}")
@@ -283,97 +301,101 @@ class GitAuto:
 
         # Add files
         if self.interactive:
-            add_files = input("Files to add (. for all, or specific files): ").strip()
+            add_files = input("Files to add (. for all): ").strip()
         else:
             add_files = "."
+
         if not add_files:
             add_files = "."
-        if add_files == ".":
-            success, _, error = self.run_command(['git', 'add', '.'])
-        else:
-            files = add_files.split()
-            success, _, error = self.run_command(['git', 'add'] + files)
-        if not success:
-            self.print_error(f"Failed to add files: {error}")
-            sys.exit(1)
-        self.print_success(f"Added files: {add_files}")
 
-        # Commit
-        use_ai = self.get_api_key() and self.get_provider()
+        if add_files == ".":
+            ok, _, err = self.run_command(["git", "add", "."])
+        else:
+            ok, _, err = self.run_command(["git", "add"] + add_files.split())
+
+        if not ok:
+            self.print_error(f"Failed to add files: {err}")
+            sys.exit(1)
+        self.print_success(f"Added: {add_files}")
+
+        # Commit message
         commit_message = None
+        use_ai = self.get_api_key() and self.get_provider()
 
         while True:
             if use_ai and self.interactive:
-                generate = input("Generate commit message with AI? (y/n): ").strip().lower()
-                if generate == 'y':
+                gen = input("Generate commit message with AI? (y/n): ").strip().lower()
+                if gen == "y":
                     diff = self.get_diff()
                     if diff:
                         commit_message = self.generate_commit_message(diff)
                         if commit_message:
-                            print(f"\n{Colors.GREEN}AI Generated Commit Message:{Colors.END} {commit_message}")
-                            choice = input("Use this message? (y = yes, r = regenerate, n = cancel): ").strip().lower()
-                            if choice == 'r':
+                            print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
+                            choice = input("Use this? (y=yes, r=regen, n=manual): ").strip().lower()
+                            if choice == "r":
                                 continue
-                            elif choice == 'n':
-                                commit_message = input("Enter commit message manually: ").strip()
+                            elif choice == "n":
+                                commit_message = input("Enter commit message: ").strip()
                             break
+
             if not commit_message and self.interactive:
                 commit_message = input("Enter commit message: ").strip()
+
             if not commit_message:
                 self.print_error("Commit message cannot be empty!")
                 sys.exit(1)
+
             break
 
-        # Commit
-        success, _, error = self.run_command(['git', 'commit', '-m', commit_message])
-        if not success:
-            self.print_error(f"Failed to commit: {error}")
+        ok, _, err = self.run_command(["git", "commit", "-m", commit_message])
+        if not ok:
+            self.print_error(f"Commit failed: {err}")
             sys.exit(1)
         self.print_success(f"Committed: {commit_message}")
 
-        # Branch
+        # Branch switching
         branches = self.get_branches()
         if branches:
             print(f"{Colors.CYAN}Available branches:{Colors.END}")
-            for i, branch in enumerate(branches[:10], 1):
-                marker = "→" if branch == current_branch else " "
-                print(f"  {marker} {branch}")
+            for b in branches[:10]:
+                pref = "→" if b == current_branch else " "
+                print(f"  {pref} {b}")
 
         if self.interactive:
-            switch_branch = input(f"Switch branch? (leave empty to stay on '{current_branch}'): ").strip()
-            if switch_branch:
-                success, _, error = self.run_command(['git', 'checkout', switch_branch])
-                if success:
-                    self.print_success(f"Switched to branch: {switch_branch}")
-                    current_branch = switch_branch
+            switch = input(f"Switch branch? (leave empty to stay on '{current_branch}'): ").strip()
+            if switch:
+                ok, _, err = self.run_command(["git", "checkout", switch])
+                if ok:
+                    self.print_success(f"Switched to: {switch}")
+                    current_branch = switch
                 else:
-                    create_new = input(f"Branch doesn't exist. Create it? (y/n): ").strip().lower()
-                    if create_new == 'y':
-                        success, _, error = self.run_command(['git', 'checkout', '-b', switch_branch])
-                        if success:
-                            self.print_success(f"Created and switched to branch: {switch_branch}")
-                            current_branch = switch_branch
+                    create = input("Branch doesn't exist. Create it? (y/n): ").strip().lower()
+                    if create == "y":
+                        ok, _, err = self.run_command(["git", "checkout", "-b", switch])
+                        if ok:
+                            self.print_success(f"Created and switched to: {switch}")
+                            current_branch = switch
                         else:
-                            self.print_error(f"Failed to create branch: {error}")
+                            self.print_error(f"Failed: {err}")
 
         # Push
         if self.interactive:
             push = input("Push to remote? (y/n): ").strip().lower()
-            if push == 'y':
-                self.print_info(f"Pushing to origin/{current_branch}...")
-                success, output, error = self.run_command(['git', 'push', 'origin', current_branch], capture_output=False)
-                if success:
-                    self.print_success(f"Successfully pushed to origin/{current_branch}")
+            if push == "y":
+                ok, _, _ = self.run_command(["git", "push", "origin", current_branch], capture_output=False)
+                if ok:
+                    self.print_success(f"Pushed to origin/{current_branch}")
                 else:
-                    upstream = input("Set upstream and push? (y/n): ").strip().lower()
-                    if upstream == 'y':
-                        success, _, error = self.run_command(['git', 'push', '--set-upstream', 'origin', current_branch], capture_output=False)
-                        if success:
-                            self.print_success("Successfully pushed and set upstream")
+                    up = input("Set upstream and push? (y/n): ").strip().lower()
+                    if up == "y":
+                        ok, _, err = self.run_command(
+                            ["git", "push", "--set-upstream", "origin", current_branch],
+                            capture_output=False
+                        )
+                        if ok:
+                            self.print_success("Upstream set and pushed.")
                         else:
-                            self.print_error(f"Failed to push: {error}")
-            else:
-                self.print_info("Skipped push")
+                            self.print_error(err)
 
         self.print_header("All Done!")
         self.print_success("Automation Completed Successfully")
@@ -386,24 +408,23 @@ def main():
         if sys.argv[1] in ('-v', '--version'):
             print(f"GitAuto v{__version__}")
             sys.exit(0)
+
         if sys.argv[1] == 'setup':
-            gitauto = GitAuto()
-            gitauto.setup_ai()
-            sys.exit(0)
-        if sys.argv[1] == '--pre-commit' or sys.argv[1] == '--commit-msg':
-            # Hooks placeholder
+            GitAuto().setup_ai()
             sys.exit(0)
 
-    gitauto = GitAuto()
+        if sys.argv[1] in ('--pre-commit', '--commit-msg'):
+            sys.exit(0)
+
+    bot = GitAuto()
     try:
-        gitauto.run()
+        bot.run()
     except KeyboardInterrupt:
         print(f"\n\n{Colors.YELLOW}Aborted by user{Colors.END}")
         sys.exit(1)
     except Exception as e:
-        print(f"\n{Colors.RED}Error: {str(e)}{Colors.END}")
+        print(f"\n{Colors.RED}Error: {e}{Colors.END}")
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()
