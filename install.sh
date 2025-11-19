@@ -1,30 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------------------
-# Colors
-# ---------------------------
+# ============================================================
+# GitAuto installer
+# ============================================================
+
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-print_header() { echo -e "\n${BLUE}================================================================${NC}\n  $1\n${BLUE}================================================================${NC}\n"; }
-print_success() { echo -e "${GREEN}✓ $1${NC}"; }
-print_error()   { echo -e "${RED}✗ $1${NC}"; }
-print_info()    { echo -e "${YELLOW}→ $1${NC}"; }
+print() { echo -e "${BLUE}==>${NC} $1"; }
+success() { echo -e "${GREEN}✓ $1${NC}"; }
+warn() { echo -e "${YELLOW}⚠ $1${NC}"; }
+error() { echo -e "${RED}✗ $1${NC}"; }
 
 check_command() { command -v "$1" &>/dev/null || return 1; }
 
 # ---------------------------
 # Safety & OS detection
 # ---------------------------
-print_header "GitAuto Installation Script"
+print "GitAuto Installation Script"
 
 if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-    print_error "Do not run as root/sudo!"
-    print_info "Run without sudo: ./install.sh"
+    error "Do not run as root/sudo!"
     exit 1
 fi
 
@@ -35,7 +35,7 @@ case "$UNAME" in
     MINGW*|MSYS*|CYGWIN*) OS="gitbash" ;;
     *) OS="unknown" ;;
 esac
-print_info "Detected OS: ${OS} (${UNAME})"
+print "Detected OS: ${OS} (${UNAME})"
 
 # ---------------------------
 # Project root
@@ -46,7 +46,7 @@ WORKDIR="$(pwd)"
 # ---------------------------
 # Python 3 check
 # ---------------------------
-print_info "Locating Python 3..."
+print "Locating Python 3..."
 PYTHON=""
 if check_command python3; then PYTHON=python3
 elif check_command python; then
@@ -54,45 +54,46 @@ elif check_command python; then
 fi
 
 if [ -z "$PYTHON" ]; then
-    print_error "Python 3 not found!"
+    error "Python 3 not found!"
     exit 1
 fi
+
 PY_VER="$($PYTHON -c 'import sys; print("{}.{}".format(sys.version_info.major, sys.version_info.minor))')"
-print_success "Python found (version $PY_VER)"
+success "Python found (version $PY_VER)"
 
 # ---------------------------
 # pip check
 # ---------------------------
-print_info "Locating pip..."
+print "Locating pip..."
 PIP=""
 if check_command pip3; then PIP=pip3
 elif check_command pip; then PIP=pip
 elif $PYTHON -m pip --version &>/dev/null; then PIP="$PYTHON -m pip"
 else
-    print_error "pip not found. Please install pip."
+    error "pip not found. Please install pip."
     exit 1
 fi
-print_success "pip found ($PIP)"
+success "pip found ($PIP)"
 
 # ---------------------------
 # Git check
 # ---------------------------
-print_info "Checking Git..."
+print "Checking Git..."
 if ! check_command git; then
-    print_error "Git is not installed!"
+    error "Git is not installed!"
     exit 1
 fi
-print_success "Git found ($(git --version))"
+success "Git found ($(git --version))"
 
 # ---------------------------
 # requirements.txt check
 # ---------------------------
-print_info "Checking for requirements.txt..."
+print "Checking for requirements.txt..."
 if [ ! -f requirements.txt ]; then
-    print_error "requirements.txt not found in $WORKDIR"
+    error "requirements.txt not found in $WORKDIR"
     exit 1
 fi
-print_success "requirements.txt found"
+success "requirements.txt found"
 
 # ---------------------------
 # Virtualenv detection
@@ -101,18 +102,18 @@ VENV_ACTIVE="no"
 if [ -n "${VIRTUAL_ENV:-}" ] || [ "$($PYTHON -c 'import sys; print(sys.prefix != getattr(sys, \"base_prefix\", sys.prefix))')" = "True" ]; then
     VENV_ACTIVE="yes"
 fi
-print_info "Virtual environment active: $VENV_ACTIVE"
+print "Virtual environment active: $VENV_ACTIVE"
 
 # ---------------------------
-# Install Python dependencies
+# Install dependencies
 # ---------------------------
-print_info "Installing Python dependencies..."
+print "Installing Python dependencies..."
 if [ "$VENV_ACTIVE" = "yes" ]; then
-    $PIP install -q -r requirements.txt
-    print_success "Dependencies installed inside virtualenv"
+    $PIP install -r requirements.txt
+    success "Dependencies installed inside virtualenv"
 else
-    $PIP install --user -q -r requirements.txt
-    print_success "Dependencies installed to user site"
+    $PIP install --user -r requirements.txt
+    success "Dependencies installed to user site"
 fi
 
 # ---------------------------
@@ -128,34 +129,34 @@ if [ -d "$SYSTEM_BIN" ] && [ -w "$SYSTEM_BIN" ]; then
 elif check_command sudo; then
     CAN_INSTALL_SYSTEM="maybe"
 fi
-print_info "User-local install: $USER_LOCAL_BIN. System install possible: $CAN_INSTALL_SYSTEM"
+print "User-local install: $USER_LOCAL_BIN. System install possible: $CAN_INSTALL_SYSTEM"
 
 # ---------------------------
 # Install gitauto script
 # ---------------------------
 SCRIPT_NAME="gitauto.py"
 if [ ! -f "$SCRIPT_NAME" ]; then
-    print_error "$SCRIPT_NAME not found in $WORKDIR"
+    error "$SCRIPT_NAME not found in $WORKDIR"
     exit 1
 fi
 
 USER_TARGET="$USER_LOCAL_BIN/gitauto"
 cp "$SCRIPT_NAME" "$USER_TARGET"
 chmod +x "$USER_TARGET"
-print_success "Installed user-local: $USER_TARGET"
+success "Installed user-local: $USER_TARGET"
 
 if [ "$CAN_INSTALL_SYSTEM" = "yes" ]; then
     SYSTEM_TARGET="$SYSTEM_BIN/gitauto"
     cp "$SCRIPT_NAME" "$SYSTEM_TARGET"
     chmod +x "$SYSTEM_TARGET"
-    print_success "Installed system-wide: $SYSTEM_TARGET"
+    success "Installed system-wide: $SYSTEM_TARGET"
 elif [ "$CAN_INSTALL_SYSTEM" = "maybe" ]; then
     SYSTEM_TARGET="$SYSTEM_BIN/gitauto"
-    print_info "Attempting system install with sudo..."
+    print "Attempting system install with sudo..."
     if sudo cp "$SCRIPT_NAME" "$SYSTEM_TARGET" && sudo chmod +x "$SYSTEM_TARGET"; then
-        print_success "Installed system-wide via sudo: $SYSTEM_TARGET"
+        success "Installed system-wide via sudo: $SYSTEM_TARGET"
     else
-        print_info "System install via sudo failed. Skipping."
+        warn "System install via sudo failed. Skipping."
     fi
 fi
 
@@ -169,7 +170,7 @@ update_shell_rc() {
         echo "" >> "$rcfile"
         echo "# Added by GitAuto installer" >> "$rcfile"
         echo "$line" >> "$rcfile"
-        print_success "Added PATH to $rcfile"
+        success "Added PATH to $rcfile"
     fi
 }
 
@@ -178,16 +179,14 @@ if [[ ":$PATH:" != *":$USER_LOCAL_BIN:"* ]]; then
     update_shell_rc "$HOME/.bash_profile"
     update_shell_rc "$HOME/.zshrc"
     export PATH="$USER_LOCAL_BIN:$PATH"
-    print_info "Reload shell or run: source ~/.bashrc"
+    print "Reload shell or run: source ~/.bashrc"
 fi
 
 # ---------------------------
-# AI Setup (JSON)
+# AI Setup
 # ---------------------------
-CONFIG_DIR="$HOME/.gitauto"
-mkdir -p "$CONFIG_DIR"
-
-read -p "Enable AI-powered commit messages? (y/N): " enable_ai
+print "AI Setup (OpenAI / Anthropic / Gemini 2.5 flash)"
+read -p "Enable AI for commit messages now? (y/N): " enable_ai
 if [[ "$enable_ai" =~ ^[Yy]$ ]]; then
     echo ""
     echo "1) anthropic (Claude)"
@@ -198,11 +197,13 @@ if [[ "$enable_ai" =~ ^[Yy]$ ]]; then
         1) provider="anthropic" ;;
         2) provider="openai" ;;
         3) provider="gemini" ;;
-        *) print_error "Invalid choice"; provider="" ;;
+        *) provider="" ;;
     esac
 
     if [[ -n "$provider" ]]; then
         read -p "Enter API key for $provider: " api_key
+        CONFIG_DIR="$HOME/.gitauto"
+        mkdir -p "$CONFIG_DIR"
         cat > "$CONFIG_DIR/config.json" <<EOF
 {
     "provider": "$provider",
@@ -210,49 +211,43 @@ if [[ "$enable_ai" =~ ^[Yy]$ ]]; then
 }
 EOF
         chmod 600 "$CONFIG_DIR/config.json"
-        print_success "$provider API key saved to $CONFIG_DIR/config.json"
+        success "$provider API key saved to $CONFIG_DIR/config.json"
     fi
 fi
 
 # ---------------------------
-# Optional Git Hooks
+# Git Hooks Setup
 # ---------------------------
-read -p "Install Git hooks in a repository? (y/N): " install_hooks
-if [[ "$install_hooks" =~ ^[Yy]$ ]]; then
-    read -p "Repository path (Enter for current directory): " repo_path
-    repo_path="${repo_path:-$(pwd)}"
+print "Optional: Auto-install Git hooks in a repository"
+read -p "Install Git hooks in current repo or path? (Enter for current, or path): " repo_path
+if [ -z "$repo_path" ]; then repo_path="$(pwd)"; fi
 
-    if [ -d "$repo_path/.git" ]; then
-        hook_dir="$repo_path/.git/hooks"
-        mkdir -p "$hook_dir"
+if [ -d "$repo_path/.git" ]; then
+    HOOK_DIR="$repo_path/.git/hooks"
+    mkdir -p "$HOOK_DIR"
 
-        cat > "$hook_dir/pre-commit" <<'EOF'
+    # pre-commit
+    cat > "$HOOK_DIR/pre-commit" <<'EOF'
 #!/usr/bin/env bash
 if command -v gitauto >/dev/null 2>&1; then
     gitauto --pre-commit
 fi
 EOF
-        chmod +x "$hook_dir/pre-commit"
+    chmod +x "$HOOK_DIR/pre-commit"
 
-        cat > "$hook_dir/commit-msg" <<'EOF'
+    # commit-msg
+    cat > "$HOOK_DIR/commit-msg" <<'EOF'
 #!/usr/bin/env bash
 if command -v gitauto >/dev/null 2>&1; then
     gitauto --commit-msg "$1"
 fi
 EOF
-        chmod +x "$hook_dir/commit-msg"
-
-        print_success "Git hooks installed in $repo_path"
-        print_info "GitAuto will now run automatically on commits"
-    else
-        print_info "No git repo found at $repo_path. Skipping hooks."
-    fi
+    chmod +x "$HOOK_DIR/commit-msg"
+    success "Git hooks installed in $repo_path"
+else
+    warn "No git repo found at $repo_path. Skipping Git hooks."
 fi
 
-print_header "Installation Complete!"
-print_success "GitAuto installed to: $USER_TARGET"
-if [ -n "${SYSTEM_TARGET:-}" ]; then
-    print_success "Also installed system-wide: $SYSTEM_TARGET"
-fi
-print_info "Navigate to a git repo and run: gitauto"
+success "GitAuto installation complete!"
+print "Run 'gitauto' inside a git repository to start automating commits."
 exit 0
