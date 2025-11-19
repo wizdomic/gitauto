@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---------------------------
-# Colors & helpers
-# ---------------------------
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -17,9 +14,6 @@ print_info()    { echo -e "${YELLOW}→ $1${NC}"; }
 
 check_command() { command -v "$1" &>/dev/null || return 1; }
 
-# ---------------------------
-# Initial checks
-# ---------------------------
 print_header "GitAuto Installation Script"
 
 if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
@@ -40,9 +34,7 @@ print_info "Detected OS: ${OS} (${UNAME})"
 cd "$(dirname "$0")" || exit 1
 WORKDIR="$(pwd)"
 
-# ---------------------------
 # Python 3 check
-# ---------------------------
 print_info "Locating Python 3..."
 PYTHON=""
 if check_command python3; then PYTHON=python3
@@ -53,12 +45,11 @@ if [ -z "$PYTHON" ]; then
     print_error "Python 3 not found!"
     exit 1
 fi
+
 PY_VER="$($PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 print_success "Python found (version $PY_VER)"
 
-# ---------------------------
 # pip check
-# ---------------------------
 print_info "Locating pip..."
 PIP=""
 if check_command pip3; then PIP=pip3
@@ -70,9 +61,7 @@ else
 fi
 print_success "pip found ($PIP)"
 
-# ---------------------------
 # Git check
-# ---------------------------
 print_info "Checking Git..."
 if ! check_command git; then
     print_error "Git is not installed!"
@@ -80,9 +69,7 @@ if ! check_command git; then
 fi
 print_success "Git found ($(git --version))"
 
-# ---------------------------
 # requirements.txt check
-# ---------------------------
 print_info "Checking for requirements.txt..."
 if [ ! -f requirements.txt ]; then
     print_error "requirements.txt not found in $WORKDIR"
@@ -91,7 +78,7 @@ fi
 print_success "requirements.txt found"
 
 # ---------------------------
-# Virtual environment
+# Virtual environment (always)
 # ---------------------------
 VENV_DIR="$HOME/.gitauto_venv"
 if [ ! -d "$VENV_DIR" ]; then
@@ -139,16 +126,7 @@ if [[ ":$PATH:" != *":$USER_LOCAL_BIN:"* ]]; then
 fi
 
 # ---------------------------
-# Git Hooks installation
-# ---------------------------
-print_info "Install Git hooks for AI commit messages?"
-read -p "(y/N): " install_hooks
-if [[ "$install_hooks" =~ ^[Yy]$ ]]; then
-    "$USER_TARGET" --install-hooks
-fi
-
-# ---------------------------
-# AI Setup
+# AI Setup (OpenAI / Anthropic / Google Gemini)
 # ---------------------------
 print_info "Optional: Enable AI-powered commit messages"
 read -p "Enable AI now? (y/N): " enable_ai
@@ -179,11 +157,6 @@ EOF
         print_success "$provider API key saved to $CONFIG_DIR/config.json"
     fi
 fi
-
-# ---------------------------
-# Debug mode suggestion
-# ---------------------------
-print_info "Enable debug mode by running gitauto with --debug"
 
 print_header "Installation Complete!"
 print_success "GitAuto installed to $USER_TARGET"
