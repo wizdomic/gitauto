@@ -8,26 +8,7 @@ import json
 from pathlib import Path
 from typing import Optional, List
 
-__version__ = "2.0.0"
-
-# ----------------------------
-# Lazy imports
-# ----------------------------
-def lazy_import_openai():
-    import openai
-    from openai import OpenAI
-    return openai, OpenAI
-
-def lazy_import_anthropic():
-    import anthropic
-    return anthropic
-
-def lazy_import_gemini():
-    try:
-        import google.generativeai as genai
-        return genai
-    except ImportError:
-        return None
+__version__ = "2.2.0"
 
 # ----------------------------
 # Terminal colors
@@ -49,6 +30,7 @@ class GitAuto:
     def __init__(self):
         self.config_dir = Path.home() / '.gitauto'
         self.config_file = self.config_dir / 'config.json'
+        self.ai_venv = self.config_dir / 'ai_venv'
         self.config = self.load_config()
         self.interactive = sys.stdin.isatty()
 
@@ -98,7 +80,7 @@ class GitAuto:
         print(f"{Colors.YELLOW}⚠ {text}{Colors.END}")
 
     # ----------------------------
-    # Run shell command
+    # Shell command helpers
     # ----------------------------
     def run_command(self, command: List[str], capture_output=True) -> tuple:
         try:
@@ -150,7 +132,44 @@ class GitAuto:
         return output if success else "No remote configured"
 
     # ----------------------------
-    # AI Commit generation
+    # Lazy AI library installer
+    # ----------------------------
+    def install_ai_library(self, provider: str):
+        if provider == 'openai':
+            try:
+                import openai
+            except ImportError:
+                self.print_info("OpenAI library not found. Installing...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "openai"])
+                import openai
+        elif provider == 'anthropic':
+            try:
+                import anthropic
+            except ImportError:
+                self.print_info("Anthropic library not found. Installing...")
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "anthropic"])
+                import anthropic
+        elif provider == 'gemini':
+            if not self.ai_venv.exists():
+                self.print_info("Creating dedicated Gemini virtual environment...")
+                subprocess.check_call([sys.executable, "-m", "venv", str(self.ai_venv)])
+
+            if os.name == "nt":
+                python_bin = self.ai_venv / "Scripts" / "python.exe"
+                site_packages = self.ai_venv / "Lib" / "site-packages"
+            else:
+                python_bin = self.ai_venv / "bin" / "python"
+                site_packages = self.ai_venv / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
+
+            try:
+                import google.generativeai
+            except ImportError:
+                self.print_info("Gemini library not found. Installing in isolated venv...")
+                subprocess.check_call([str(python_bin), "-m", "pip", "install", "--quiet", "google-generativeai"])
+                sys.path.insert(0, str(site_packages))
+
+    # ----------------------------
+    # Generate AI commit message
     # ----------------------------
     def generate_commit_message(self, diff: str) -> Optional[str]:
         api_key = self.get_api_key()
@@ -160,20 +179,25 @@ class GitAuto:
             return None
 
         self.print_info(f"Using AI provider: {provider}")
+        self.install_ai_library(provider)
 
         try:
-            # ----------------------------
-            # Anthropic
-            # ----------------------------
-            if provider == 'anthropic':
-                anthropic = lazy_import_anthropic()
-                if not anthropic:
-                    self.print_warning("Anthropic library not installed.")
-                    return None
+            if provider == 'openai':
+                import openai
+                client = openai.OpenAI(api_key=api_key)
+                self.print_info("Generating commit message with OpenAI GPT...")
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user",
+                               "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"}],
+                    max_tokens=100,
+                )
+                return response.choices[0].message.content.strip()
 
+            elif provider == 'anthropic':
+                import anthropic
                 client = anthropic.Anthropic(api_key=api_key)
                 self.print_info("Generating commit message with Claude...")
-
                 msg = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=500,
@@ -184,95 +208,40 @@ class GitAuto:
                 )
                 return msg.content[0].text.strip()
 
-            # ----------------------------
-            # OpenAI
-            # ----------------------------
-            elif provider == 'openai':
-                openai, OpenAI = lazy_import_openai()
-                client = OpenAI(api_key=api_key)
-                self.print_info("Generating commit message with OpenAI GPT...")
-
-                response = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user",
-                               "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"}],
-                    max_tokens=100,
-                )
-                return response.choices[0].message.content.strip()
-
-            # ----------------------------
-            # Gemini (Cross-platform, isolated venv)
-            # ----------------------------
             elif provider == 'gemini':
-                try:
-                    try:
-                        genai = importlib.import_module("google.generativeai")
-                    except ImportError:
-                        self.print_info("Gemini library not found. Preparing isolated environment...")
-
-                        venv_dir = self.config_dir / "venv"
-
-                        # Platform-correct paths
-                        if os.name == "nt":
-                            python_bin = venv_dir / "Scripts" / "python.exe"
-                            site_packages = venv_dir / "Lib" / "site-packages"
-                        else:
-                            python_bin = venv_dir / "bin" / "python"
-                            site_packages = venv_dir / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
-
-                        if not venv_dir.exists():
-                            self.print_info("Creating dedicated virtual environment...")
-                            subprocess.check_call([sys.executable, "-m", "venv", str(venv_dir)])
-
-                        self.print_info("Installing google-generativeai into GitAuto venv...")
-                        subprocess.check_call([
-                            str(python_bin), "-m", "pip", "install", "--quiet", "google-generativeai"
-                        ])
-
-                        sys.path.insert(0, str(site_packages))
-                        genai = importlib.import_module("google.generativeai")
-
-                    genai.configure(api_key=api_key)
-                    self.print_info("Generating commit message with Gemini AI...")
-
-                    model = genai.GenerativeModel("gemini-2.5-flash")
-                    response = model.generate_content(
-                        f"Generate a concise git commit message for changes:\n{diff[:3000]}"
-                    )
-
-                    if hasattr(response, "text") and response.text:
-                        return response.text.strip()
-
-                    if hasattr(response, "candidates"):
-                        cand = response.candidates[0]
-                        part = cand.content.parts[0]
-                        return getattr(part, "text", "").strip()
-
-                    return "Generated commit message unavailable."
-
-                except Exception as e:
-                    self.print_error(f"Gemini AI generation failed: {e}")
-                    return None
+                import importlib
+                genai = importlib.import_module("google.generativeai")
+                genai.configure(api_key=api_key)
+                self.print_info("Generating commit message with Gemini AI...")
+                model = genai.GenerativeModel("gemini-2.5-flash")
+                response = model.generate_content(f"Generate a concise git commit message for changes:\n{diff[:3000]}")
+                if hasattr(response, "text") and response.text:
+                    return response.text.strip()
+                if hasattr(response, "candidates"):
+                    cand = response.candidates[0]
+                    part = cand.content.parts[0]
+                    return getattr(part, "text", "").strip()
+                return "Generated commit message unavailable."
 
         except Exception as e:
             self.print_error(f"AI generation failed: {e}")
             return None
 
     # ----------------------------
-    # AI Setup
+    # Interactive AI setup
     # ----------------------------
     def setup_ai(self):
-        print(f"{Colors.HEADER}{Colors.BOLD}GitAuto AI Setup{Colors.END}\n")
-        provider = input("Enter AI provider (anthropic/openai/gemini) or leave empty to skip: ").strip().lower()
-        if provider in ("anthropic", "openai", "gemini"):
+        self.print_header("GitAuto AI Setup")
+        provider = input("Enter AI provider (openai/anthropic/gemini) or leave empty to skip: ").strip().lower()
+        if provider in ("openai", "anthropic", "gemini"):
             api_key = input(f"Enter API key for {provider}: ").strip()
             if api_key:
                 self.save_config({"provider": provider, "api_key": api_key})
                 self.print_success(f"{provider} API key saved!")
             else:
-                print("No API key entered.")
+                self.print_warning("No API key entered. Skipping.")
         else:
-            print("Skipped AI setup.")
+            self.print_warning("Skipped AI setup.")
 
     # ----------------------------
     # Main workflow
@@ -299,53 +268,49 @@ class GitAuto:
             print(f"\n{Colors.CYAN}Changes detected:{Colors.END}")
             print(status)
 
-        # Add files
-        if self.interactive:
-            add_files = input("Files to add (. for all): ").strip()
-        else:
-            add_files = "."
-
+        # ----------------------------
+        # 1️⃣ Add files
+        # ----------------------------
+        add_files = input("Files to add (. for all): ").strip() if self.interactive else "."
         if not add_files:
             add_files = "."
-
-        if add_files == ".":
-            ok, _, err = self.run_command(["git", "add", "."])
-        else:
-            ok, _, err = self.run_command(["git", "add"] + add_files.split())
-
+        ok, _, err = self.run_command(["git", "add"] + (add_files.split() if add_files != "." else ["."]))
         if not ok:
             self.print_error(f"Failed to add files: {err}")
             sys.exit(1)
         self.print_success(f"Added: {add_files}")
 
-        # Commit message
+        # ----------------------------
+        # 2️⃣ Commit message
+        # ----------------------------
         commit_message = None
         use_ai = self.get_api_key() and self.get_provider()
 
-        while True:
-            if use_ai and self.interactive:
-                gen = input("Generate commit message with AI? (y/n): ").strip().lower()
-                if gen == "y":
-                    diff = self.get_diff()
-                    if diff:
-                        commit_message = self.generate_commit_message(diff)
-                        if commit_message:
-                            print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
-                            choice = input("Use this? (y=yes, r=regen, n=manual): ").strip().lower()
-                            if choice == "r":
-                                continue
-                            elif choice == "n":
-                                commit_message = input("Enter commit message: ").strip()
-                            break
-
-            if not commit_message and self.interactive:
-                commit_message = input("Enter commit message: ").strip()
-
+        if self.interactive:
+            ai_choice = input("Generate commit message with AI? (y/n): ").strip().lower()
+            if ai_choice == "y" and use_ai:
+                diff = self.get_diff()
+                if diff:
+                    commit_message = self.generate_commit_message(diff)
+                    if commit_message:
+                        print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
+                        confirm = input("Use this message? (y=yes, r=regen, n=manual): ").strip().lower()
+                        if confirm == "r":
+                            commit_message = self.generate_commit_message(diff)
+                        elif confirm == "n":
+                            commit_message = input("Enter commit message manually: ").strip()
             if not commit_message:
-                self.print_error("Commit message cannot be empty!")
-                sys.exit(1)
+                commit_message = input("Enter commit message: ").strip()
+        else:
+            if use_ai:
+                diff = self.get_diff()
+                commit_message = self.generate_commit_message(diff)
+            if not commit_message:
+                commit_message = "Auto commit"
 
-            break
+        if not commit_message:
+            self.print_error("Commit message cannot be empty!")
+            sys.exit(1)
 
         ok, _, err = self.run_command(["git", "commit", "-m", commit_message])
         if not ok:
@@ -353,7 +318,9 @@ class GitAuto:
             sys.exit(1)
         self.print_success(f"Committed: {commit_message}")
 
-        # Branch switching
+        # ----------------------------
+        # 3️⃣ Branch selection
+        # ----------------------------
         branches = self.get_branches()
         if branches:
             print(f"{Colors.CYAN}Available branches:{Colors.END}")
@@ -367,18 +334,18 @@ class GitAuto:
                 ok, _, err = self.run_command(["git", "checkout", switch])
                 if ok:
                     self.print_success(f"Switched to: {switch}")
-                    current_branch = switch
                 else:
                     create = input("Branch doesn't exist. Create it? (y/n): ").strip().lower()
                     if create == "y":
                         ok, _, err = self.run_command(["git", "checkout", "-b", switch])
                         if ok:
                             self.print_success(f"Created and switched to: {switch}")
-                            current_branch = switch
                         else:
                             self.print_error(f"Failed: {err}")
 
-        # Push
+        # ----------------------------
+        # 4️⃣ Push
+        # ----------------------------
         if self.interactive:
             push = input("Push to remote? (y/n): ").strip().lower()
             if push == "y":
@@ -400,20 +367,20 @@ class GitAuto:
         self.print_header("All Done!")
         self.print_success("Automation Completed Successfully")
 
+
 # ----------------------------
 # Entry point
 # ----------------------------
 def main():
     if len(sys.argv) > 1:
-        if sys.argv[1] in ('-v', '--version'):
+        arg = sys.argv[1].lower()
+        if arg in ('-v', '--version'):
             print(f"GitAuto v{__version__}")
             sys.exit(0)
-
-        if sys.argv[1] == 'setup':
+        if arg in ('setup', '--setup'):
             GitAuto().setup_ai()
             sys.exit(0)
-
-        if sys.argv[1] in ('--pre-commit', '--commit-msg'):
+        if arg in ('--pre-commit', '--commit-msg'):
             sys.exit(0)
 
     bot = GitAuto()
