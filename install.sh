@@ -17,9 +17,6 @@ print_info()    { echo -e "${YELLOW}→ $1${NC}"; }
 
 check_command() { command -v "$1" &>/dev/null || return 1; }
 
-# ----------------------------
-# Start installation
-# ----------------------------
 print_header "GitAuto Installation Script"
 
 if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
@@ -31,9 +28,7 @@ fi
 cd "$(dirname "$0")" || exit 1
 WORKDIR="$(pwd)"
 
-# ----------------------------
 # Python 3 check
-# ----------------------------
 print_info "Locating Python 3..."
 PYTHON=""
 if check_command python3; then PYTHON=python3
@@ -47,9 +42,7 @@ fi
 PY_VER="$($PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 print_success "Python found (version $PY_VER)"
 
-# ----------------------------
 # pip check
-# ----------------------------
 print_info "Locating pip..."
 PIP=""
 if check_command pip3; then PIP=pip3
@@ -61,9 +54,7 @@ else
 fi
 print_success "pip found ($PIP)"
 
-# ----------------------------
 # Git check
-# ----------------------------
 print_info "Checking Git..."
 if ! check_command git; then
     print_error "Git is not installed!"
@@ -71,9 +62,7 @@ if ! check_command git; then
 fi
 print_success "Git found ($(git --version))"
 
-# ----------------------------
 # requirements.txt check
-# ----------------------------
 print_info "Checking for requirements.txt..."
 if [ ! -f requirements.txt ]; then
     print_error "requirements.txt not found in $WORKDIR"
@@ -82,16 +71,13 @@ fi
 print_success "requirements.txt found"
 
 # ----------------------------
-# Virtual environment
+# Virtual environment for main dependencies
 # ----------------------------
 VENV_DIR="$HOME/.gitauto_venv"
 if [ ! -d "$VENV_DIR" ]; then
     print_info "Creating virtual environment at $VENV_DIR..."
     $PYTHON -m venv "$VENV_DIR"
 fi
-
-# Activate venv
-# shellcheck disable=SC1091
 source "$VENV_DIR/bin/activate"
 print_success "Virtual environment activated"
 
@@ -101,7 +87,22 @@ pip install -r requirements.txt
 print_success "Python dependencies installed"
 
 # ----------------------------
-# Install gitauto.py script
+# AI dedicated venv
+# ----------------------------
+AI_VENV="$HOME/.gitauto/ai_venv"
+if [ ! -d "$AI_VENV" ]; then
+    print_info "Creating dedicated AI virtual environment at $AI_VENV..."
+    $PYTHON -m venv "$AI_VENV"
+fi
+source "$AI_VENV/bin/activate"
+
+print_info "Installing AI libraries in dedicated venv..."
+pip install --upgrade pip setuptools wheel
+pip install openai anthropic google-generativeai
+print_success "AI libraries installed in $AI_VENV"
+
+# ----------------------------
+# Install gitauto script
 # ----------------------------
 USER_LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$USER_LOCAL_BIN"
@@ -133,12 +134,10 @@ if [[ ":$PATH:" != *":$USER_LOCAL_BIN:"* ]]; then
     print_info "Reload shell or run: source ~/.bashrc"
 fi
 
-# ----------------------------
-# Completion
-# ----------------------------
 print_header "Installation Complete!"
 print_success "GitAuto installed to $USER_TARGET"
-print_info "Activate virtual environment: source $VENV_DIR/bin/activate"
+print_info "Activate virtual environment for GitAuto: source $VENV_DIR/bin/activate"
+print_info "AI environment ready at $AI_VENV"
 print_info "Run gitauto inside a git repository"
-print_info "To configure AI: gitauto --setup"
+print_info "Configure AI keys: gitauto --setup"
 exit 0

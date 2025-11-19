@@ -1,14 +1,33 @@
 #!/usr/bin/env python3
 
-import os
 import sys
+import os
+from pathlib import Path
+import site
+
+# ----------------------------
+# Auto-add Gemini AI venv to sys.path
+# ----------------------------
+AI_VENV = Path.home() / ".gitauto" / "ai_venv"
+if AI_VENV.exists():
+    if os.name == "nt":
+        site_packages = AI_VENV / "Lib" / "site-packages"
+    else:
+        pyver = f"{sys.version_info.major}.{sys.version_info.minor}"
+        site_packages = AI_VENV / "lib" / f"python{pyver}" / "site-packages"
+    if site_packages.exists():
+        sys.path.insert(0, str(site_packages))
+
+# ----------------------------
+# Standard imports
+# ----------------------------
 import subprocess
 import importlib
 import json
 from pathlib import Path
 from typing import Optional, List
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 
 # ----------------------------
 # Terminal colors
@@ -30,7 +49,7 @@ class GitAuto:
     def __init__(self):
         self.config_dir = Path.home() / '.gitauto'
         self.config_file = self.config_dir / 'config.json'
-        self.ai_venv = self.config_dir / 'ai_venv'
+        self.ai_venv = AI_VENV
         self.config = self.load_config()
         self.interactive = sys.stdin.isatty()
 
@@ -141,32 +160,25 @@ class GitAuto:
             except ImportError:
                 self.print_info("OpenAI library not found. Installing...")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "openai"])
-                import openai
         elif provider == 'anthropic':
             try:
                 import anthropic
             except ImportError:
                 self.print_info("Anthropic library not found. Installing...")
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "anthropic"])
-                import anthropic
         elif provider == 'gemini':
             if not self.ai_venv.exists():
                 self.print_info("Creating dedicated Gemini virtual environment...")
                 subprocess.check_call([sys.executable, "-m", "venv", str(self.ai_venv)])
-
-            if os.name == "nt":
-                python_bin = self.ai_venv / "Scripts" / "python.exe"
-                site_packages = self.ai_venv / "Lib" / "site-packages"
-            else:
-                python_bin = self.ai_venv / "bin" / "python"
-                site_packages = self.ai_venv / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages"
-
             try:
                 import google.generativeai
             except ImportError:
-                self.print_info("Gemini library not found. Installing in isolated venv...")
+                self.print_info("Installing Gemini AI in venv...")
+                if os.name == "nt":
+                    python_bin = self.ai_venv / "Scripts" / "python.exe"
+                else:
+                    python_bin = self.ai_venv / "bin" / "python"
                 subprocess.check_call([str(python_bin), "-m", "pip", "install", "--quiet", "google-generativeai"])
-                sys.path.insert(0, str(site_packages))
 
     # ----------------------------
     # Generate AI commit message
@@ -185,7 +197,6 @@ class GitAuto:
             if provider == 'openai':
                 import openai
                 client = openai.OpenAI(api_key=api_key)
-                self.print_info("Generating commit message with OpenAI GPT...")
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "user",
@@ -193,26 +204,20 @@ class GitAuto:
                     max_tokens=100,
                 )
                 return response.choices[0].message.content.strip()
-
             elif provider == 'anthropic':
                 import anthropic
                 client = anthropic.Anthropic(api_key=api_key)
-                self.print_info("Generating commit message with Claude...")
                 msg = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=500,
-                    messages=[{
-                        "role": "user",
-                        "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"
-                    }]
+                    messages=[{"role": "user",
+                               "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"}]
                 )
                 return msg.content[0].text.strip()
-
             elif provider == 'gemini':
                 import importlib
                 genai = importlib.import_module("google.generativeai")
                 genai.configure(api_key=api_key)
-                self.print_info("Generating commit message with Gemini AI...")
                 model = genai.GenerativeModel("gemini-2.5-flash")
                 response = model.generate_content(f"Generate a concise git commit message for changes:\n{diff[:3000]}")
                 if hasattr(response, "text") and response.text:
@@ -222,7 +227,6 @@ class GitAuto:
                     part = cand.content.parts[0]
                     return getattr(part, "text", "").strip()
                 return "Generated commit message unavailable."
-
         except Exception as e:
             self.print_error(f"AI generation failed: {e}")
             return None
@@ -269,7 +273,7 @@ class GitAuto:
             print(status)
 
         # ----------------------------
-        # 1️⃣ Add files
+        # Add files
         # ----------------------------
         add_files = input("Files to add (. for all): ").strip() if self.interactive else "."
         if not add_files:
@@ -281,7 +285,7 @@ class GitAuto:
         self.print_success(f"Added: {add_files}")
 
         # ----------------------------
-        # 2️⃣ Commit message
+        # Commit message
         # ----------------------------
         commit_message = None
         use_ai = self.get_api_key() and self.get_provider()
@@ -319,7 +323,19 @@ class GitAuto:
         self.print_success(f"Committed: {commit_message}")
 
         # ----------------------------
-        # 3️⃣ Branch selection
+        # Undo last commit option
+        # ----------------------------
+        if self.interactive:
+            undo = input("Undo last commit? (y/n): ").strip().lower()
+            if undo == "y":
+                ok, _, err = self.run_command(["git", "reset", "--soft", "HEAD~1"])
+                if ok:
+                    self.print_success("Last commit undone, changes staged.")
+                else:
+                    self.print_error(f"Failed to undo commit: {err}")
+
+        # ----------------------------
+        # Branch selection
         # ----------------------------
         branches = self.get_branches()
         if branches:
@@ -344,7 +360,7 @@ class GitAuto:
                             self.print_error(f"Failed: {err}")
 
         # ----------------------------
-        # 4️⃣ Push
+        # Push
         # ----------------------------
         if self.interactive:
             push = input("Push to remote? (y/n): ").strip().lower()
@@ -392,6 +408,7 @@ def main():
     except Exception as e:
         print(f"\n{Colors.RED}Error: {e}{Colors.END}")
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
