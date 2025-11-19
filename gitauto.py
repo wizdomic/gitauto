@@ -2,8 +2,14 @@
 
 import sys
 import os
+import subprocess
+import importlib
+import json
 from pathlib import Path
+from typing import Optional, List
 import site
+
+__version__ = "2.0.0"
 
 # ----------------------------
 # Auto-add Gemini AI venv to sys.path
@@ -17,17 +23,6 @@ if AI_VENV.exists():
         site_packages = AI_VENV / "lib" / f"python{pyver}" / "site-packages"
     if site_packages.exists():
         sys.path.insert(0, str(site_packages))
-
-# ----------------------------
-# Standard imports
-# ----------------------------
-import subprocess
-import importlib
-import json
-from pathlib import Path
-from typing import Optional, List
-
-__version__ = "2.3.0"
 
 # ----------------------------
 # Terminal colors
@@ -47,8 +42,8 @@ class Colors:
 # ----------------------------
 class GitAuto:
     def __init__(self):
-        self.config_dir = Path.home() / '.gitauto'
-        self.config_file = self.config_dir / 'config.json'
+        self.config_dir = Path.home() / ".gitauto"
+        self.config_file = self.config_dir / "config.json"
         self.ai_venv = AI_VENV
         self.config = self.load_config()
         self.interactive = sys.stdin.isatty()
@@ -59,7 +54,7 @@ class GitAuto:
     def load_config(self) -> dict:
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file, "r") as f:
                     return json.load(f)
             except Exception:
                 pass
@@ -67,16 +62,16 @@ class GitAuto:
 
     def save_config(self, config: dict):
         self.config_dir.mkdir(exist_ok=True)
-        with open(self.config_file, 'w') as f:
+        with open(self.config_file, "w") as f:
             json.dump(config, f)
         os.chmod(self.config_file, 0o600)
         self.config = config
 
     def get_api_key(self) -> Optional[str]:
-        return self.config.get('api_key')
+        return self.config.get("api_key")
 
     def get_provider(self) -> Optional[str]:
-        return self.config.get('provider')
+        return self.config.get("provider")
 
     # ----------------------------
     # Print helpers
@@ -118,55 +113,59 @@ class GitAuto:
     # Git helpers
     # ----------------------------
     def is_git_repo(self) -> bool:
-        success, _, _ = self.run_command(['git', 'rev-parse', '--git-dir'])
+        success, _, _ = self.run_command(["git", "rev-parse", "--git-dir"])
         return success
 
     def get_git_status(self) -> str:
-        success, output, _ = self.run_command(['git', 'status', '--short'])
+        success, output, _ = self.run_command(["git", "status", "--short"])
         return output if success else ""
 
     def get_diff(self) -> str:
-        success, output, _ = self.run_command(['git', 'diff', '--cached'])
+        success, output, _ = self.run_command(["git", "diff", "--cached"])
         if not success or not output:
-            success, output, _ = self.run_command(['git', 'diff'])
+            success, output, _ = self.run_command(["git", "diff"])
         return output if success else ""
 
     def get_current_branch(self) -> str:
-        success, output, _ = self.run_command(['git', 'branch', '--show-current'])
+        success, output, _ = self.run_command(["git", "branch", "--show-current"])
         return output if success else "main"
 
     def get_branches(self) -> List[str]:
-        success, output, _ = self.run_command(['git', 'branch', '-a'])
+        success, output, _ = self.run_command(["git", "branch", "-a"])
         if not success:
             return []
         branches = []
-        for line in output.split('\n'):
-            branch = line.strip().replace('* ', '').replace('remotes/origin/', '')
-            if branch and not branch.startswith('HEAD'):
+        for line in output.split("\n"):
+            branch = line.strip().replace("* ", "").replace("remotes/origin/", "")
+            if branch and not branch.startswith("HEAD"):
                 branches.append(branch)
         return list(set(branches))
 
     def get_remote_url(self) -> str:
-        success, output, _ = self.run_command(['git', 'remote', 'get-url', 'origin'])
+        success, output, _ = self.run_command(["git", "remote", "get-url", "origin"])
         return output if success else "No remote configured"
 
     # ----------------------------
     # Lazy AI library installer
     # ----------------------------
     def install_ai_library(self, provider: str):
-        if provider == 'openai':
+        if provider == "openai":
             try:
                 import openai
             except ImportError:
                 self.print_info("OpenAI library not found. Installing...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "openai"])
-        elif provider == 'anthropic':
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", "--quiet", "openai"]
+                )
+        elif provider == "anthropic":
             try:
                 import anthropic
             except ImportError:
                 self.print_info("Anthropic library not found. Installing...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "anthropic"])
-        elif provider == 'gemini':
+                subprocess.check_call(
+                    [sys.executable, "-m", "pip", "install", "--quiet", "anthropic"]
+                )
+        elif provider == "gemini":
             if not self.ai_venv.exists():
                 self.print_info("Creating dedicated Gemini virtual environment...")
                 subprocess.check_call([sys.executable, "-m", "venv", str(self.ai_venv)])
@@ -194,7 +193,7 @@ class GitAuto:
         self.install_ai_library(provider)
 
         try:
-            if provider == 'openai':
+            if provider == "openai":
                 import openai
                 client = openai.OpenAI(api_key=api_key)
                 response = client.chat.completions.create(
@@ -204,7 +203,7 @@ class GitAuto:
                     max_tokens=100,
                 )
                 return response.choices[0].message.content.strip()
-            elif provider == 'anthropic':
+            elif provider == "anthropic":
                 import anthropic
                 client = anthropic.Anthropic(api_key=api_key)
                 msg = client.messages.create(
@@ -214,8 +213,7 @@ class GitAuto:
                                "content": f"Generate a concise git commit message for changes:\n{diff[:3000]}"}]
                 )
                 return msg.content[0].text.strip()
-            elif provider == 'gemini':
-                import importlib
+            elif provider == "gemini":
                 genai = importlib.import_module("google.generativeai")
                 genai.configure(api_key=api_key)
                 model = genai.GenerativeModel("gemini-2.5-flash")
@@ -295,14 +293,21 @@ class GitAuto:
             if ai_choice == "y" and use_ai:
                 diff = self.get_diff()
                 if diff:
-                    commit_message = self.generate_commit_message(diff)
-                    if commit_message:
-                        print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
-                        confirm = input("Use this message? (y=yes, r=regen, n=manual): ").strip().lower()
-                        if confirm == "r":
-                            commit_message = self.generate_commit_message(diff)
-                        elif confirm == "n":
+                    while True:  # Regeneration loop
+                        commit_message = self.generate_commit_message(diff)
+                        if not commit_message:
+                            self.print_error("AI failed to generate a commit message!")
                             commit_message = input("Enter commit message manually: ").strip()
+                            break
+                        print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
+                        confirm = input("Use this message? (y=yes, r=regenerate, m=manual): ").strip().lower()
+                        if confirm == "y":
+                            break  # Approved → exit loop
+                        elif confirm == "r":
+                            continue  # Regenerate → loop again
+                        elif confirm == "m":
+                            commit_message = input("Enter commit message manually: ").strip()
+                            break
             if not commit_message:
                 commit_message = input("Enter commit message: ").strip()
         else:
@@ -323,7 +328,7 @@ class GitAuto:
         self.print_success(f"Committed: {commit_message}")
 
         # ----------------------------
-        # Undo last commit option
+        # Undo last commit
         # ----------------------------
         if self.interactive:
             undo = input("Undo last commit? (y/n): ").strip().lower()
@@ -371,10 +376,7 @@ class GitAuto:
                 else:
                     up = input("Set upstream and push? (y/n): ").strip().lower()
                     if up == "y":
-                        ok, _, err = self.run_command(
-                            ["git", "push", "--set-upstream", "origin", current_branch],
-                            capture_output=False
-                        )
+                        ok, _, err = self.run_command(["git", "push", "--set-upstream", "origin", current_branch], capture_output=False)
                         if ok:
                             self.print_success("Upstream set and pushed.")
                         else:
@@ -383,23 +385,23 @@ class GitAuto:
         self.print_header("All Done!")
         self.print_success("Automation Completed Successfully")
 
-
 # ----------------------------
 # Entry point
 # ----------------------------
 def main():
+    bot = GitAuto()
+
     if len(sys.argv) > 1:
         arg = sys.argv[1].lower()
         if arg in ('-v', '--version'):
             print(f"GitAuto v{__version__}")
             sys.exit(0)
         if arg in ('setup', '--setup'):
-            GitAuto().setup_ai()
+            bot.setup_ai()
             sys.exit(0)
         if arg in ('--pre-commit', '--commit-msg'):
             sys.exit(0)
 
-    bot = GitAuto()
     try:
         bot.run()
     except KeyboardInterrupt:
@@ -410,5 +412,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
