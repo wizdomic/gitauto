@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ============================================================
-# GitAuto installer
-# ============================================================
-
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -52,11 +48,7 @@ if check_command python3; then PYTHON=python3
 elif check_command python; then
     if python -c 'import sys; sys.exit(0) if sys.version_info.major>=3 else sys.exit(1)'; then PYTHON=python; fi
 fi
-
-if [ -z "$PYTHON" ]; then
-    error "Python 3 not found!"
-    exit 1
-fi
+[ -z "$PYTHON" ] && { error "Python 3 not found!"; exit 1; }
 
 PY_VER="$($PYTHON -c 'import sys; print("{}.{}".format(sys.version_info.major, sys.version_info.minor))')"
 success "Python found (version $PY_VER)"
@@ -65,7 +57,6 @@ success "Python found (version $PY_VER)"
 # pip check
 # ---------------------------
 print "Locating pip..."
-PIP=""
 if check_command pip3; then PIP=pip3
 elif check_command pip; then PIP=pip
 elif $PYTHON -m pip --version &>/dev/null; then PIP="$PYTHON -m pip"
@@ -79,20 +70,13 @@ success "pip found ($PIP)"
 # Git check
 # ---------------------------
 print "Checking Git..."
-if ! check_command git; then
-    error "Git is not installed!"
-    exit 1
-fi
+check_command git || { error "Git not installed!"; exit 1; }
 success "Git found ($(git --version))"
 
 # ---------------------------
 # requirements.txt check
 # ---------------------------
-print "Checking for requirements.txt..."
-if [ ! -f requirements.txt ]; then
-    error "requirements.txt not found in $WORKDIR"
-    exit 1
-fi
+[ ! -f requirements.txt ] && { error "requirements.txt not found in $WORKDIR"; exit 1; }
 success "requirements.txt found"
 
 # ---------------------------
@@ -117,11 +101,19 @@ else
 fi
 
 # ---------------------------
-# Install locations
+# Install gitauto script
 # ---------------------------
 USER_LOCAL_BIN="$HOME/.local/bin"
 SYSTEM_BIN="/usr/local/bin"
 mkdir -p "$USER_LOCAL_BIN"
+
+SCRIPT_NAME="gitauto.py"
+[ ! -f "$SCRIPT_NAME" ] && { error "$SCRIPT_NAME not found!"; exit 1; }
+
+USER_TARGET="$USER_LOCAL_BIN/gitauto"
+cp "$SCRIPT_NAME" "$USER_TARGET"
+chmod +x "$USER_TARGET"
+success "Installed user-local: $USER_TARGET"
 
 CAN_INSTALL_SYSTEM="no"
 if [ -d "$SYSTEM_BIN" ] && [ -w "$SYSTEM_BIN" ]; then
@@ -129,21 +121,6 @@ if [ -d "$SYSTEM_BIN" ] && [ -w "$SYSTEM_BIN" ]; then
 elif check_command sudo; then
     CAN_INSTALL_SYSTEM="maybe"
 fi
-print "User-local install: $USER_LOCAL_BIN. System install possible: $CAN_INSTALL_SYSTEM"
-
-# ---------------------------
-# Install gitauto script
-# ---------------------------
-SCRIPT_NAME="gitauto.py"
-if [ ! -f "$SCRIPT_NAME" ]; then
-    error "$SCRIPT_NAME not found in $WORKDIR"
-    exit 1
-fi
-
-USER_TARGET="$USER_LOCAL_BIN/gitauto"
-cp "$SCRIPT_NAME" "$USER_TARGET"
-chmod +x "$USER_TARGET"
-success "Installed user-local: $USER_TARGET"
 
 if [ "$CAN_INSTALL_SYSTEM" = "yes" ]; then
     SYSTEM_TARGET="$SYSTEM_BIN/gitauto"
@@ -186,7 +163,7 @@ fi
 # AI Setup
 # ---------------------------
 print "AI Setup (OpenAI / Anthropic / Gemini 2.5 flash)"
-read -p "Enable AI for commit messages now? (y/N): " enable_ai
+read -p "Enable AI for commit messages? (y/N): " enable_ai
 if [[ "$enable_ai" =~ ^[Yy]$ ]]; then
     echo ""
     echo "1) anthropic (Claude)"
@@ -216,11 +193,11 @@ EOF
 fi
 
 # ---------------------------
-# Git Hooks Setup
+# Git hooks setup
 # ---------------------------
-print "Optional: Auto-install Git hooks in a repository"
+print "Optional: Install Git hooks"
 read -p "Install Git hooks in current repo or path? (Enter for current, or path): " repo_path
-if [ -z "$repo_path" ]; then repo_path="$(pwd)"; fi
+[ -z "$repo_path" ] && repo_path="$(pwd)"
 
 if [ -d "$repo_path/.git" ]; then
     HOOK_DIR="$repo_path/.git/hooks"
@@ -229,25 +206,22 @@ if [ -d "$repo_path/.git" ]; then
     # pre-commit
     cat > "$HOOK_DIR/pre-commit" <<'EOF'
 #!/usr/bin/env bash
-if command -v gitauto >/dev/null 2>&1; then
-    gitauto --pre-commit
-fi
+command -v gitauto >/dev/null 2>&1 && gitauto --pre-commit
 EOF
     chmod +x "$HOOK_DIR/pre-commit"
 
     # commit-msg
     cat > "$HOOK_DIR/commit-msg" <<'EOF'
 #!/usr/bin/env bash
-if command -v gitauto >/dev/null 2>&1; then
-    gitauto --commit-msg "$1"
-fi
+command -v gitauto >/dev/null 2>&1 && gitauto --commit-msg "$1"
 EOF
     chmod +x "$HOOK_DIR/commit-msg"
+
     success "Git hooks installed in $repo_path"
 else
-    warn "No git repo found at $repo_path. Skipping Git hooks."
+    warn "No git repo found at $repo_path. Skipping hooks."
 fi
 
 success "GitAuto installation complete!"
-print "Run 'gitauto' inside a git repository to start automating commits."
+print "Run 'gitauto' inside a git repo to start automating commits."
 exit 0
