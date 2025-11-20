@@ -3,6 +3,7 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![OS](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20WSL%20%7C%20Git%20Bash-brightgreen)
 
+## Description
 GitAuto is a lightweight command-line tool that automates your everyday Git workflow — file staging, commit message generation (with optional AI-generated commit message), branch switching, and pushing changes — all in one guided interactive flow.
 
 ---
