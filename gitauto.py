@@ -81,9 +81,9 @@ class GitAuto:
     # Print helpers
     # ----------------------------
     def print_header(self, text: str):
-        print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.END}")
+        print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*30}{Colors.END}")
         print(f"{Colors.HEADER}{Colors.BOLD}{text.center(60)}{Colors.END}")
-        print(f"{Colors.HEADER}{Colors.BOLD}{'='*60}{Colors.END}\n")
+        print(f"{Colors.HEADER}{Colors.BOLD}{'='*30}{Colors.END}\n")
 
     def print_success(self, text: str):
         print(f"{Colors.GREEN}✓ {text}{Colors.END}")
@@ -571,7 +571,6 @@ class GitAuto:
                         self.print_info("Skipping push; resolve manually later.")
 
         self.print_header("All Done!")
-        self.print_success("Automation Completed Successfully")
 
 
 # Entry point
