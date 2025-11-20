@@ -1,4 +1,8 @@
-# **GitAuto**
+Perfect! I see your README is almost ready, but there are a few small tweaks and fixes I would suggest to make it **fully consistent, clean, and error-free**:
+
+---
+
+# **GitAuto** ✅ Fixed Version
 
 GitAuto is a lightweight command-line tool that automates your everyday Git workflow — file staging, commit message generation (with optional AI-generated commit message), branch switching, and pushing changes — all in one guided interactive flow.
 
@@ -6,42 +10,58 @@ GitAuto is a lightweight command-line tool that automates your everyday Git work
 
 ## **✨ Features**
 
-* file selection
+* File selection
 * AI-generated commit messages (Claude / OpenAI / Gemini)
 * Safe commit approval and regeneration (manual commit also supported)
-* Provided undo commit option
+* Undo commit option
 * Auto branch switch/create
 * Auto push with upstream handling (hybrid)
-* No configuration required (Optional AI)
-* Works on Linux, macOS, WSL and Git Bash
+* No configuration required (optional AI)
+* Works on Linux, macOS, WSL, and Git Bash
 
 ---
 
 ## **📦 Installation**
 
-### **1. Clone the repository**
+### **1. Clone the repository (hidden folder)**
 
 ```bash
 git clone https://github.com/wizdomic/gitauto.git ~/.gitauto
 cd ~/.gitauto
 ```
 
+> `~/.gitauto` is hidden. Use `ls -a` to see it.
+
+---
+
 ### **2. Run installer**
 
 ```bash
+chmod +x install.sh
 ./install.sh
 ```
+
+---
 
 ### **3. Reload shell**
 
 ```bash
-source ~/.bashrc    # or ~/.zshrc
+source ~/.bashrc    # or source ~/.zshrc
 ```
 
-### **4. Check Installation:
+---
+
+### **4. Verify installation**
 
 ```bash
 gitauto -v
+```
+
+> If you get **command not found**, add `~/.local/bin` to your PATH:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ---
@@ -60,10 +80,18 @@ gitauto setup
 export API_KEY="your-api-key"
 ```
 
+> For persistence, add this to `~/.bashrc`:
+
+```bash
+echo 'export API_KEY="your-api-key"' >> ~/.bashrc
+source ~/.bashrc
+```
+
 Supports:
-✔ Anthropic Claude
-✔ OpenAI GPT
-✔ Gemini
+
+* Anthropic Claude
+* OpenAI GPT
+* Gemini
 
 ---
 
@@ -75,7 +103,7 @@ Run inside any Git repository:
 gitauto
 ```
 
-The tool guides you through:
+The interactive workflow guides you through:
 
 1. Select files (`.` for all)
 2. Generate or write commit message
@@ -97,11 +125,9 @@ The tool guides you through:
 
 ## **⬆️ Updating GitAuto**
 
-Already included in repo: **update.sh**
-
-To update:
-
+Open new terminal
 ```bash
+cd ~/.gitauto
 ./update.sh
 ```
 
@@ -109,9 +135,9 @@ To update:
 
 ## **🗑 Uninstallation**
 
-Use the script included: **uninstall.sh**
-
+Open new terminal
 ```bash
+cd ~/.gitauto
 ./uninstall.sh
 ```
 
@@ -126,22 +152,23 @@ This removes:
 
 ## **🐞 Troubleshooting**
 
-### GitAuto not found:
+### 1️⃣ GitAuto not found:
 
 ```bash
 echo $PATH
 ```
 
-If `~/.local/bin` missing:
+If `~/.local/bin` is missing:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### AI not working:
+---
+
+### 2️⃣ AI not working:
 
 ```bash
 gitauto setup
-pip install anthropic openai
 ```
