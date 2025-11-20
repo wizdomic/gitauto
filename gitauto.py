@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, List
 import site
 
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 
 # ----------------------------
 # Auto-add Gemini AI venv to sys.path
@@ -257,12 +257,136 @@ class GitAuto:
         else:
             self.print_warning("Skipped AI setup.")
 
-    # Commit flow (single iteration)
-    # return values:
-    #   "restart" -> user undid and wants to redo commit flow
-    #   "continue" -> proceed to remainder of workflow (branches/push)
-    #   "abort" -> user undid and DOES NOT want to continue further (stop run)
+    # ----------------------------
+    # Push resolver (hybrid)
+    # ----------------------------
+    def push_with_hybrid_resolver(self, branch: str) -> bool:
+        """
+        Attempts push. If push rejected due to remote changes, attempt a hybrid resolution:
+          1) try pull --rebase (auto)
+          2) if pull --rebase fails due to conflicts, inform user and offer choices:
+             - abort (leave local staged/working tree)
+             - perform git pull --no-rebase (merge)
+             - force push (dangerous)
+        Returns True on successful push, False otherwise.
+        """
+        self.print_info(f"Attempting to push to origin/{branch}...")
+        ok, _, stderr = self.run_command(["git", "push", "origin", branch], capture_output=True)
+        if ok:
+            self.print_success(f"Pushed to origin/{branch}")
+            return True
 
+        # detect non-fast-forward / rejection
+        if "fetch first" in stderr.lower() or "non-fast-forward" in stderr.lower() or "rejected" in stderr.lower():
+            self.print_warning("Push was rejected — remote contains work you don't have locally.")
+            # Non-interactive: try a safe automatic rebase then push
+            if not self.interactive:
+                self.print_info("Non-interactive mode: attempting 'git pull --rebase origin <branch>' and re-push.")
+                ok_pull, out_pull, err_pull = self.run_command(["git", "pull", "--rebase", "origin", branch], capture_output=True)
+                if not ok_pull:
+                    self.print_error(f"Automatic rebase failed: {err_pull or out_pull}")
+                    return False
+                # try push again
+                ok2, _, err2 = self.run_command(["git", "push", "origin", branch], capture_output=True)
+                if ok2:
+                    self.print_success(f"Pushed to origin/{branch} after rebase.")
+                    return True
+                else:
+                    self.print_error(f"Push still failed: {err2}")
+                    return False
+
+            # interactive: present hybrid options
+            self.print_info("Choose how to resolve the remote divergence:")
+            self.print_info("  1) Auto rebase (git pull --rebase) then push (recommended)")
+            self.print_info("  2) Merge (git pull --no-rebase) then push")
+            self.print_info("  3) Force push (git push --force) — destructive, use with caution")
+            self.print_info("  4) Abort (do nothing)")
+            choice = input("Select (1/2/3/4) [1]: ").strip() or "1"
+
+            if choice == "1":
+                self.print_info("Running: git pull --rebase origin {branch}")
+                ok_pull, out_pull, err_pull = self.run_command(["git", "pull", "--rebase", "origin", branch], capture_output=True)
+                if ok_pull:
+                    self.print_success("Rebase successful. Attempting push...")
+                    ok2, _, err2 = self.run_command(["git", "push", "origin", branch], capture_output=True)
+                    if ok2:
+                        self.print_success(f"Pushed to origin/{branch} after rebase.")
+                        return True
+                    else:
+                        self.print_error(f"Push failed after rebase: {err2}")
+                        return False
+                else:
+                    # rebase failed — likely conflicts
+                    self.print_error(f"Rebase failed: {err_pull or out_pull}")
+                    self.print_warning("Repository may now be in a conflicted state. Resolve conflicts manually or choose another option.")
+                    # offer fallback choices
+                    fallback = input("Run merge (2), force push (3) or abort (4)? [4]: ").strip() or "4"
+                    if fallback == "2":
+                        # attempt merge
+                        ok_m, out_m, err_m = self.run_command(["git", "pull", "--no-rebase", "origin", branch], capture_output=True)
+                        if ok_m:
+                            ok_push, _, err_push = self.run_command(["git", "push", "origin", branch], capture_output=True)
+                            if ok_push:
+                                self.print_success("Merged and pushed successfully.")
+                                return True
+                            else:
+                                self.print_error(f"Push after merge failed: {err_push}")
+                                return False
+                        else:
+                            self.print_error(f"Merge failed: {err_m or out_m}")
+                            return False
+                    elif fallback == "3":
+                        ok_f, _, err_f = self.run_command(["git", "push", "--force", "origin", branch], capture_output=True)
+                        if ok_f:
+                            self.print_success("Force-pushed to remote (destructive).")
+                            return True
+                        else:
+                            self.print_error(f"Force push failed: {err_f}")
+                            return False
+                    else:
+                        self.print_info("Aborted push resolution. Please resolve manually.")
+                        return False
+
+            elif choice == "2":
+                self.print_info("Running: git pull --no-rebase origin {branch} (merge)")
+                ok_m, out_m, err_m = self.run_command(["git", "pull", "--no-rebase", "origin", branch], capture_output=True)
+                if ok_m:
+                    ok_push, _, err_push = self.run_command(["git", "push", "origin", branch], capture_output=True)
+                    if ok_push:
+                        self.print_success("Merged and pushed successfully.")
+                        return True
+                    else:
+                        self.print_error(f"Push after merge failed: {err_push}")
+                        return False
+                else:
+                    self.print_error(f"Merge failed: {err_m or out_m}")
+                    return False
+
+            elif choice == "3":
+                confirm = input("Force push will overwrite remote history. Type 'FORCE' to confirm: ").strip()
+                if confirm == "FORCE":
+                    ok_f, _, err_f = self.run_command(["git", "push", "--force", "origin", branch], capture_output=True)
+                    if ok_f:
+                        self.print_success("Force-pushed to remote (destructive).")
+                        return True
+                    else:
+                        self.print_error(f"Force push failed: {err_f}")
+                        return False
+                else:
+                    self.print_info("Force push cancelled.")
+                    return False
+            else:
+                self.print_info("Aborted push resolution. Please resolve manually.")
+                return False
+        else:
+            # unknown push failure
+            self.print_error(f"Push failed: {stderr}")
+            return False
+
+    # ----------------------------
+    # Commit flow (single iteration)
+    # Returns: "restart", "continue", "abort"
+    # ----------------------------
     def commit_flow(self) -> str:
         # Show status / changes
         status = self.get_git_status()
@@ -311,6 +435,7 @@ class GitAuto:
                             commit_message = input("Enter commit message manually: ").strip()
                             break
 
+                        # show concise suggestion only (the AI is instructed to be short)
                         print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
                         confirm = input("Use this message? (y=yes, r=regenerate, m=manual): ").strip().lower()
 
@@ -352,7 +477,7 @@ class GitAuto:
                     if redo == "y":
                         return "restart"
                     else:
-                        # user does not want to commit again; abort remaining workflow
+                        # user does not want to continue with branch/push tasks
                         return "abort"
                 else:
                     self.print_error(f"Failed to undo commit: {err}")
@@ -422,17 +547,28 @@ class GitAuto:
         if self.interactive:
             push = input("Push to remote? (y/n): ").strip().lower()
             if push == "y":
-                ok, _, _ = self.run_command(["git", "push", "origin", current_branch], capture_output=False)
-                if ok:
-                    self.print_success(f"Pushed to origin/{current_branch}")
-                else:
-                    up = input("Set upstream and push? (y/n): ").strip().lower()
-                    if up == "y":
+                pushed = self.push_with_hybrid_resolver(current_branch)
+                if not pushed:
+                    # ask user if they want to try upstream set or force or abort
+                    extra = input("Push unsuccessful. Try set-upstream and push? (y=--set-upstream, f=force, n=skip): ").strip().lower()
+                    if extra == "y":
                         ok, _, err = self.run_command(["git", "push", "--set-upstream", "origin", current_branch], capture_output=False)
                         if ok:
                             self.print_success("Upstream set and pushed.")
                         else:
-                            self.print_error(err)
+                            self.print_error(f"Failed to set upstream: {err}")
+                    elif extra == "f":
+                        confirm = input("Type 'FORCE' to confirm destructive force-push: ").strip()
+                        if confirm == "FORCE":
+                            ok, _, err = self.run_command(["git", "push", "--force", "origin", current_branch], capture_output=False)
+                            if ok:
+                                self.print_success("Force-pushed to remote (destructive).")
+                            else:
+                                self.print_error(f"Force push failed: {err}")
+                        else:
+                            self.print_info("Force push cancelled.")
+                    else:
+                        self.print_info("Skipping push; resolve manually later.")
 
         self.print_header("All Done!")
         self.print_success("Automation Completed Successfully")
