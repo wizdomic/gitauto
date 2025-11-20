@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional, List
 import site
 
-__version__ = "2.0.3"
+__version__ = "1.0.0"
 
 # ----------------------------
 # Auto-add Gemini AI venv to sys.path

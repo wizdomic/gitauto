@@ -1,10 +1,13 @@
-#***OPEN SOURCED***
-# **GitAuto**
+# GitAuto
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![OS](https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20WSL%20%7C%20Git%20Bash-brightgreen)
+
 GitAuto is a lightweight command-line tool that automates your everyday Git workflow — file staging, commit message generation (with optional AI-generated commit message), branch switching, and pushing changes — all in one guided interactive flow.
 
 ---
 
-## **✨ Features**
+## ✨ Features
 
 * File selection
 * AI-generated commit messages (Claude / OpenAI / Gemini)
@@ -17,20 +20,20 @@ GitAuto is a lightweight command-line tool that automates your everyday Git work
 
 ---
 
-## **📦 Installation**
+## 📦 Installation
 
-### **1. Clone the repository (hidden folder)**
+### 1️⃣ Clone the repository (hidden folder)
 
 ```bash
 git clone https://github.com/wizdomic/gitauto.git ~/.gitauto
 cd ~/.gitauto
-```
+````
 
 > `~/.gitauto` is hidden. Use `ls -a` to see it.
 
 ---
 
-### **2. Run installer**
+### 2️⃣ Run installer
 
 ```bash
 chmod +x install.sh
@@ -39,7 +42,7 @@ chmod +x install.sh
 
 ---
 
-### **3. Reload shell**
+### 3️⃣ Reload shell
 
 ```bash
 source ~/.bashrc    # or source ~/.zshrc
@@ -47,7 +50,7 @@ source ~/.bashrc    # or source ~/.zshrc
 
 ---
 
-### **4. Verify installation**
+### 4️⃣ Verify installation
 
 ```bash
 gitauto -v
@@ -62,7 +65,7 @@ source ~/.bashrc
 
 ---
 
-## **⚙️ AI Commit Message Setup (Optional)**
+## ⚙️ AI Commit Message Setup (Optional)
 
 ### Option A → Run setup:
 
@@ -91,7 +94,7 @@ Supports:
 
 ---
 
-## **🚀 Usage**
+## 🚀 Usage
 
 Run inside any Git repository:
 
@@ -109,7 +112,7 @@ The interactive workflow guides you through:
 
 ---
 
-## **🔧 Commands**
+## 🔧 Commands
 
 | Command         | Description           |
 | --------------- | --------------------- |
@@ -119,9 +122,8 @@ The interactive workflow guides you through:
 
 ---
 
-## **⬆️ Updating GitAuto**
+## ⬆️ Updating GitAuto
 
-Open new terminal
 ```bash
 cd ~/.gitauto
 ./update.sh
@@ -129,15 +131,14 @@ cd ~/.gitauto
 
 ---
 
-## **🗑 Uninstallation**
+## 🗑 Uninstallation
 
-Open new terminal
 ```bash
 cd ~/.gitauto
 ./uninstall.sh
 ```
 
-This removes:
+Removes:
 
 * `~/.local/bin/gitauto`
 * `~/.gitauto`
@@ -146,9 +147,9 @@ This removes:
 
 ---
 
-## **🐞 Troubleshooting**
+## 🐞 Troubleshooting
 
-### 1️⃣ GitAuto not found:
+### 1️⃣ GitAuto not found
 
 ```bash
 echo $PATH
@@ -163,8 +164,37 @@ source ~/.bashrc
 
 ---
 
-### 2️⃣ AI not working:
+### 2️⃣ AI not working
 
 ```bash
 gitauto setup
+```
+
+---
+
+## 📝 Contributing
+
+We welcome contributions! Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines.
+
+1. Fork the repo
+2. Create a new branch (`git checkout -b feature/my-feature`)
+3. Make your changes
+4. Commit your changes (`git commit -m "Add my feature"`)
+5. Push to the branch (`git push origin feature/my-feature`)
+6. Open a Pull Request
+
+---
+
+## ⚖️ License
+
+GitAuto is open-source for **personal, educational, or non-commercial use only**.  
+Commercial use or selling is strictly prohibited. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## ❤️ Acknowledgements
+
+* Inspired by Git workflow automation needs
+* AI-powered commit messages via Claude, OpenAI, Gemini
+
 ```
