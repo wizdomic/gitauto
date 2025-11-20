@@ -257,13 +257,12 @@ class GitAuto:
         else:
             self.print_warning("Skipped AI setup.")
 
-    # ----------------------------
     # Commit flow (single iteration)
     # return values:
     #   "restart" -> user undid and wants to redo commit flow
     #   "continue" -> proceed to remainder of workflow (branches/push)
     #   "abort" -> user undid and DOES NOT want to continue further (stop run)
-    # ----------------------------
+
     def commit_flow(self) -> str:
         # Show status / changes
         status = self.get_git_status()
@@ -439,9 +438,7 @@ class GitAuto:
         self.print_success("Automation Completed Successfully")
 
 
-# ----------------------------
 # Entry point
-# ----------------------------
 def main():
     bot = GitAuto()
 
