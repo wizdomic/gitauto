@@ -29,7 +29,6 @@ cd ~/.gitauto
 ### **2. Run installer**
 
 ```bash
-chmod +x install.sh
 ./install.sh
 ```
 
