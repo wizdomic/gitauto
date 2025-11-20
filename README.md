@@ -1,9 +1,5 @@
-Perfect! I see your README is almost ready, but there are a few small tweaks and fixes I would suggest to make it **fully consistent, clean, and error-free**:
-
----
-
-# **GitAuto** ✅ Fixed Version
-
+#***OPEN SOURCED***
+# **GitAuto**
 GitAuto is a lightweight command-line tool that automates your everyday Git workflow — file staging, commit message generation (with optional AI-generated commit message), branch switching, and pushing changes — all in one guided interactive flow.
 
 ---
