@@ -11,7 +11,7 @@ import site
 
 __version__ = "1.0.0"
 
-# ----------------------------
+
 # Auto-add Gemini AI venv to sys.path
 # ----------------------------
 AI_VENV = Path.home() / ".gitauto" / "ai_venv"
@@ -24,9 +24,6 @@ if AI_VENV.exists():
     if site_packages.exists():
         sys.path.insert(0, str(site_packages))
 
-# ----------------------------
-# Terminal colors
-# ----------------------------
 class Colors:
     HEADER = '\033[95m'
     BLUE = '\033[94m'
@@ -37,7 +34,7 @@ class Colors:
     END = '\033[0m'
     BOLD = '\033[1m'
 
-# ----------------------------
+
 # GitAuto Core
 # ----------------------------
 class GitAuto:
@@ -48,7 +45,7 @@ class GitAuto:
         self.config = self.load_config()
         self.interactive = sys.stdin.isatty()
 
-    # ----------------------------
+   
     # Config management
     # ----------------------------
     def load_config(self) -> dict:
@@ -77,7 +74,7 @@ class GitAuto:
     def get_provider(self) -> Optional[str]:
         return self.config.get("provider")
 
-    # ----------------------------
+    
     # Print helpers
     # ----------------------------
     def print_header(self, text: str):
@@ -97,7 +94,7 @@ class GitAuto:
     def print_warning(self, text: str):
         print(f"{Colors.YELLOW}⚠ {text}{Colors.END}")
 
-    # ----------------------------
+    
     # Shell command helpers
     # ----------------------------
     def run_command(self, command: List[str], capture_output=True) -> tuple:
@@ -113,7 +110,7 @@ class GitAuto:
         except Exception as e:
             return False, "", str(e)
 
-    # ----------------------------
+   
     # Git helpers
     # ----------------------------
     def is_git_repo(self) -> bool:
@@ -151,7 +148,7 @@ class GitAuto:
         success, output, _ = self.run_command(["git", "remote", "get-url", "origin"])
         return output if success else "No remote configured"
 
-    # ----------------------------
+    
     # Lazy AI library installer
     # ----------------------------
     def install_ai_library(self, provider: str):
@@ -185,9 +182,9 @@ class GitAuto:
                     python_bin = self.ai_venv / "bin" / "python"
                 subprocess.check_call([str(python_bin), "-m", "pip", "install", "--quiet", "google-generativeai"])
 
-    # ----------------------------
+   
     # Generate AI commit message (concise)
-    # ----------------------------
+    # ------------------------------------
     def generate_commit_message(self, diff: str) -> Optional[str]:
         api_key = self.get_api_key()
         provider = self.get_provider()
@@ -241,9 +238,9 @@ class GitAuto:
             self.print_error(f"AI generation failed: {e}")
             return None
 
-    # ----------------------------
+    
     # Interactive AI setup
-    # ----------------------------
+    # ---------------------
     def setup_ai(self):
         self.print_header("GitAuto AI Setup")
         provider = input("Enter AI provider (openai/anthropic/gemini) or leave empty to skip: ").strip().lower()
@@ -257,9 +254,9 @@ class GitAuto:
         else:
             self.print_warning("Skipped AI setup.")
 
-    # ----------------------------
+    
     # Push resolver (hybrid)
-    # ----------------------------
+    # ------------------------
     def push_with_hybrid_resolver(self, branch: str) -> bool:
         """
         Attempts push. If push rejected due to remote changes, attempt a hybrid resolution:
@@ -383,7 +380,7 @@ class GitAuto:
             self.print_error(f"Push failed: {stderr}")
             return False
 
-    # ----------------------------
+
     # Commit flow (single iteration)
     # Returns: "restart", "continue", "abort"
     # ----------------------------
@@ -495,7 +492,7 @@ class GitAuto:
 
         return "continue"
 
-    # ----------------------------
+   
     # Main workflow
     # ----------------------------
     def run(self):

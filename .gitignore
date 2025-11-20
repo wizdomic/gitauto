@@ -1,4 +1,4 @@
-/venv# Virtual environment
+/venv
 venv/
 .env/
 .venv/

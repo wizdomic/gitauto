@@ -30,14 +30,11 @@ git clone https://github.com/wizdomic/gitauto.git ~/.gitauto
 cd ~/.gitauto
 ````
 
-> `~/.gitauto` is hidden. Use `ls -a` to see it.
-
 ---
 
 ### 2️⃣ Run installer
 
 ```bash
-chmod +x install.sh
 ./install.sh
 ```
 
@@ -125,6 +122,8 @@ The interactive workflow guides you through:
 
 ## ⬆️ Updating GitAuto
 
+Open New Terminal
+
 ```bash
 cd ~/.gitauto
 ./update.sh
@@ -133,6 +132,8 @@ cd ~/.gitauto
 ---
 
 ## 🗑 Uninstallation
+
+Open New Terminal
 
 ```bash
 cd ~/.gitauto

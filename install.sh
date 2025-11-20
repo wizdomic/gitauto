@@ -10,14 +10,14 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-print_header()  { echo -e "\n${BLUE}=================================${NC}\n  $1\n${BLUE}=================================${NC}\n"; }
+print_header()  { echo -e "\n${BLUE}===============================${NC}\n  $1\n${BLUE}===============================${NC}\n"; }
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_error()   { echo -e "${RED}✗ $1${NC}"; }
 print_info()    { echo -e "${YELLOW}→ $1${NC}"; }
 
 check_command() { command -v "$1" &>/dev/null || return 1; }
 
-# ----------------------------
+
 # OS detection
 # ----------------------------
 detect_os() {
@@ -36,38 +36,36 @@ detect_os() {
 
 suggest_install() {
     local tool="$1"
+
     case "$OS" in
         debian)
             case "$tool" in
-                python) echo "Install Python 3: sudo apt update && sudo apt install python3 python3-venv python3-pip" ;;
-                pip)    echo "Install pip: sudo apt update && sudo apt install python3-pip" ;;
-                git)    echo "Install Git: sudo apt update && sudo apt install git" ;;
+                python) echo "Install Python 3: sudo apt update && sudo apt install -y python3 python3-venv python3-pip" ;;
+                pip)    echo "Install pip: sudo apt update && sudo apt install -y python3-pip" ;;
+                git)    echo "Install Git: sudo apt update && sudo apt install -y git" ;;
             esac
             ;;
         redhat)
             case "$tool" in
-                python) echo "Install Python 3: sudo yum install python3 python3-venv python3-pip" ;;
-                pip)    echo "Install pip: sudo yum install python3-pip" ;;
-                git)    echo "Install Git: sudo yum install git" ;;
+                python) echo "Install Python 3: sudo yum install -y python3 python3-venv python3-pip" ;;
+                pip)    echo "Install pip: sudo yum install -y python3-pip" ;;
+                git)    echo "Install Git: sudo yum install -y git" ;;
             esac
             ;;
         macos)
             case "$tool" in
-                python) echo "Install Python 3: brew install python" ;;
-                pip)    echo "Install pip: brew install python" ;;
-                git)    echo "Install Git: brew install git" ;;
+                python|pip) echo "Install Python 3 and pip: brew install python" ;;
+                git)        echo "Install Git: brew install git" ;;
             esac
             ;;
         windows)
-            echo "Please install $tool from https://www.python.org/downloads/ or https://git-scm.com/download/win"
-            ;;
+            echo "Please install $tool manually from its official website." ;;
         *)
-            echo "Unable to detect OS. Please install $tool manually."
-            ;;
+            echo "Unable to detect OS. Please install $tool manually." ;;
     esac
 }
 
-# ----------------------------
+
 # Start Installation
 # ----------------------------
 print_header "Installing GitAuto"
@@ -92,11 +90,10 @@ if command -v gitauto &>/dev/null; then
 fi
 
 cd "$(dirname "$0")" || exit 1
-# Directory of this script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 WORKDIR="$DIR"
 
-# ----------------------------
+
 # Python 3 check
 # ----------------------------
 print_info "Locating Python 3..."
@@ -113,7 +110,7 @@ fi
 PY_VER="$($PYTHON -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 print_success "Python found (version $PY_VER)"
 
-# ----------------------------
+
 # pip check
 # ----------------------------
 print_info "Locating pip..."
@@ -128,7 +125,7 @@ else
 fi
 print_success "pip found ($PIP)"
 
-# ----------------------------
+
 # Git check
 # ----------------------------
 print_info "Checking Git..."
@@ -139,7 +136,7 @@ if ! check_command git; then
 fi
 print_success "Git found ($(git --version))"
 
-# ----------------------------
+
 # requirements.txt check
 # ----------------------------
 print_info "Checking for requirements.txt..."
@@ -149,7 +146,7 @@ if [ ! -f requirements.txt ]; then
 fi
 print_success "requirements.txt found"
 
-# ----------------------------
+
 # Virtual environment for main dependencies
 # ----------------------------
 VENV_DIR="$HOME/.gitauto_venv"
@@ -165,7 +162,7 @@ pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 print_success "Python dependencies installed"
 
-# ----------------------------
+
 # AI dedicated venv
 # ----------------------------
 AI_VENV="$HOME/.gitauto/ai_venv"
@@ -180,7 +177,7 @@ pip install --upgrade pip setuptools wheel
 pip install openai anthropic google-generativeai
 print_success "AI libraries installed in $AI_VENV"
 
-# ----------------------------
+
 # Install gitauto script
 # ----------------------------
 USER_LOCAL_BIN="$HOME/.local/bin"
@@ -211,7 +208,7 @@ if [[ ":$PATH:" != *":$USER_LOCAL_BIN:"* ]]; then
     print_info "Reload shell or run: source ~/.bashrc"
 fi
 
-# ----------------------------
+
 # Finish
 # ----------------------------
 print_header "Installation Complete!"

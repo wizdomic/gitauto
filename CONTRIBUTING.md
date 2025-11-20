@@ -80,5 +80,4 @@ git push origin feature/my-feature
 
 ---
 
-Thank you for contributing to GitAuto! 💖
-Happy Coding
+Thank you for contributing to GitAuto! 💖💖💖
