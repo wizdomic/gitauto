@@ -416,49 +416,59 @@ class GitAuto:
             return "abort"
         self.print_success(f"Added: {add_files}")
 
-        # Commit message
+       # Commit message
         commit_message = None
         use_ai = bool(self.get_api_key() and self.get_provider())
 
         if self.interactive:
-            ai_choice = input("Generate commit message with AI? (y/n): ").strip().lower()
-            if ai_choice == "y" and use_ai:
-                diff = self.get_diff()
-                if diff:
-                    while True:  # regeneration loop
-                        provider_name = self.get_provider()
-                        print(f"{Colors.YELLOW}Generating commit message via {provider_name}...{Colors.END}")
-                        commit_message = self.generate_commit_message(diff)
+            if use_ai:
+                ai_choice = input("Generate commit message with AI? (y/n): ").strip().lower()
+                if ai_choice == "y":
+                    diff = self.get_diff()
+                    if diff:
+                        while True:  # regeneration loop
+                            provider_name = self.get_provider()
+                            print(f"{Colors.YELLOW}Generating commit message via {provider_name}...{Colors.END}")
+                            commit_message = self.generate_commit_message(diff)
 
-                        if not commit_message:
-                            self.print_error("AI failed to generate a commit message!")
-                            commit_message = input("Enter commit message manually: ").strip()
-                            break
+                            if not commit_message:
+                                self.print_error("AI failed to generate a commit message!")
+                                commit_message = input("Enter commit message manually: ").strip()
+                                break
 
-                        # show concise suggestion only (the AI is instructed to be short)
-                        print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
-                        confirm = input("Use this message? (y=yes, r=regenerate, m=manual): ").strip().lower()
+                            # show concise suggestion only
+                            print(f"\n{Colors.GREEN}AI Commit Message:{Colors.END} {commit_message}")
+                            confirm = input("Use this message? (y=yes, r=regenerate, m=manual): ").strip().lower()
 
-                        if confirm == "y":
-                            break
-                        elif confirm == "r":
-                            continue
-                        elif confirm == "m":
-                            commit_message = input("Enter commit message manually: ").strip()
-                            break
+                            if confirm == "y":
+                                break
+                            elif confirm == "r":
+                                continue
+                            elif confirm == "m":
+                                commit_message = input("Enter commit message manually: ").strip()
+                                break
+            else:
+                print(f"{Colors.YELLOW}AI is not configured yet!{Colors.END}")
+                print(f"To configure AI, run: gitauto setup")
+                commit_message = input("Enter commit message manually: ").strip()
 
+            # fallback if still empty
             if not commit_message:
-                commit_message = input("Enter commit message: ").strip()
+                commit_message = input("Commit message cannot be empty. Please enter manually: ").strip()
+
         else:
+            # non-interactive mode
             if use_ai:
                 diff = self.get_diff()
                 commit_message = self.generate_commit_message(diff)
+
             if not commit_message:
                 commit_message = "Auto commit"
 
         if not commit_message:
             self.print_error("Commit message cannot be empty!")
             return "abort"
+
 
         ok, _, err = self.run_command(["git", "commit", "-m", commit_message])
         if not ok:

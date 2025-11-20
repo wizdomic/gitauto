@@ -92,7 +92,9 @@ if command -v gitauto &>/dev/null; then
 fi
 
 cd "$(dirname "$0")" || exit 1
-WORKDIR="$(pwd)"
+# Directory of this script
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+WORKDIR="$DIR"
 
 # ----------------------------
 # Python 3 check
@@ -185,7 +187,7 @@ USER_LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$USER_LOCAL_BIN"
 USER_TARGET="$USER_LOCAL_BIN/gitauto"
 
-cp gitauto.py "$USER_TARGET"
+cp "$DIR/src/gitauto.py" "$USER_TARGET"
 chmod +x "$USER_TARGET"
 print_success "Installed gitauto to $USER_TARGET"
 
