@@ -82,7 +82,7 @@ class GitAuto:
     # ----------------------------
     def print_header(self, text: str):
         print(f"\n{Colors.HEADER}{Colors.BOLD}{'='*30}{Colors.END}")
-        print(f"{Colors.HEADER}{Colors.BOLD}{text.center(60)}{Colors.END}")
+        print(f"{Colors.HEADER}{Colors.BOLD}{text.center(30)}{Colors.END}")
         print(f"{Colors.HEADER}{Colors.BOLD}{'='*30}{Colors.END}\n")
 
     def print_success(self, text: str):
