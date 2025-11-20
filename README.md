@@ -190,7 +190,7 @@ We welcome contributions! Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for g
 ## ⚖️ License
 
 GitAuto is open-source for **personal, educational, or non-commercial use only**.  
-Commercial use or selling is strictly prohibited. See the [LICENSE](LICENSE) file for details.
+Commercial use or selling is strictly prohibited. See the [LICENSE](LICENSE.md) file for details.
 
 ---
 
