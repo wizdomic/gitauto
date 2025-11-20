@@ -6,12 +6,13 @@ GitAuto is a lightweight command-line tool that automates your everyday Git work
 
 ## **✨ Features**
 
-* Interactive file selection
-* AI-generated commit messages (Claude / OpenAI)
-* Safe commit-approval loop (no auto-commit unless you confirm)
+* file selection
+* AI-generated commit messages (Claude / OpenAI / Gemini)
+* Safe commit approval and regeneration (manual commit also supported)
+* Provided undo commit option
 * Auto branch switch/create
-* Auto push with upstream handling
-* No configuration required
+* Auto push with upstream handling (hybrid)
+* No configuration required (Optional AI)
 * Works on Linux, macOS, WSL and Git Bash
 
 ---
@@ -21,8 +22,8 @@ GitAuto is a lightweight command-line tool that automates your everyday Git work
 ### **1. Clone the repository**
 
 ```bash
-git clone https://github.com/wizdomic/gitauto.git
-cd gitauto
+git clone https://github.com/wizdomic/gitauto.git ~/gitauto
+cd .gitauto
 ```
 
 ### **2. Run installer**
@@ -38,7 +39,7 @@ chmod +x install.sh
 source ~/.bashrc    # or ~/.zshrc
 ```
 
-Check version:
+### **4. Check Installation:
 
 ```bash
 gitauto -v
@@ -63,7 +64,7 @@ export API_KEY="your-api-key"
 Supports:
 ✔ Anthropic Claude
 ✔ OpenAI GPT
-❗ Gemini (coming soon)
+✔ Gemini
 
 ---
 
@@ -92,7 +93,6 @@ The tool guides you through:
 | `gitauto`       | Start workflow        |
 | `gitauto setup` | Add/Update AI API key |
 | `gitauto -v`    | Show version          |
-| `gitauto help`  | Show usage help       |
 
 ---
 
@@ -103,7 +103,6 @@ Already included in repo: **update.sh**
 To update:
 
 ```bash
-chmod +x update.sh
 ./update.sh
 ```
 
@@ -114,7 +113,6 @@ chmod +x update.sh
 Use the script included: **uninstall.sh**
 
 ```bash
-chmod +x uninstall.sh
 ./uninstall.sh
 ```
 
@@ -145,13 +143,6 @@ source ~/.bashrc
 ### AI not working:
 
 ```bash
-gitauto --setup
+gitauto setup
 pip install anthropic openai
-```
-
-### Python errors:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
 ```
