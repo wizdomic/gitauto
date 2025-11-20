@@ -22,8 +22,8 @@ GitAuto is a lightweight command-line tool that automates your everyday Git work
 ### **1. Clone the repository**
 
 ```bash
-git clone https://github.com/wizdomic/gitauto.git ~/gitauto
-cd .gitauto
+git clone https://github.com/wizdomic/gitauto.git ~/.gitauto
+cd ~/.gitauto
 ```
 
 ### **2. Run installer**

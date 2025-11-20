@@ -215,7 +215,7 @@ fi
 print_header "Installation Complete!"
 print_success "GitAuto installed to $USER_TARGET"
 print_info "Activated virtual environment for GitAuto: source $VENV_DIR/bin/activate"
-print_info "Configure AI keys: gitauto --setup"
+print_info "Configure AI keys: gitauto setup"
 print_info "Run gitauto inside a git repository"
 print_info "To Update Latest GitAuto: ./update.sh"
 print_info "To Uninstall Completely: ./uninstall.sh"
