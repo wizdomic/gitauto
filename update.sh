@@ -14,7 +14,7 @@ print_info()    { echo -e "${YELLOW}→ $1${NC}"; }
 
 check_command() { command -v "$1" &>/dev/null || return 1; }
 
-print_header "GitAuto Update Script"
+print_header "Updating GitAuto"
 
 if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     print_error "Do not run as root/sudo!"

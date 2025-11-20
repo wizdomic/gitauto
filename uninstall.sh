@@ -7,12 +7,12 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-print_header() { echo -e "\n${BLUE}================================================================${NC}\n  $1\n${BLUE}================================================================${NC}\n"; }
+print_header() { echo -e "\n${BLUE}=============================${NC}\n  $1\n${BLUE}=============================${NC}\n"; }
 print_success() { echo -e "${GREEN}✓ $1${NC}"; }
 print_error()   { echo -e "${RED}✗ $1${NC}"; }
 print_info()    { echo -e "${YELLOW}→ $1${NC}"; }
 
-print_header "GitAuto Uninstall Script"
+print_header "Uninstalling GitAuto"
 
 if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     print_error "Do not run as root/sudo!"
@@ -21,16 +21,25 @@ if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
 fi
 
 # Paths
-USER_LOCAL_BIN="$HOME/.local/bin/gitauto"
+USER_LOCAL_BIN1="$HOME/.local/bin/gitauto"
+USER_LOCAL_BIN2="$HOME/.local/bin/gitauto.py"
 VENV_DIR="$HOME/.gitauto_venv"
 CONFIG_DIR="$HOME/.gitauto"
 
 # Remove gitauto script
-if [ -f "$USER_LOCAL_BIN" ]; then
-    rm -f "$USER_LOCAL_BIN"
-    print_success "Removed $USER_LOCAL_BIN"
+if [ -f "$USER_LOCAL_BIN1" ]; then
+    rm -f "$USER_LOCAL_BIN1"
+    print_success "Removed $USER_LOCAL_BIN1"
 else
-    print_info "$USER_LOCAL_BIN not found, skipping"
+    print_info "$USER_LOCAL_BIN1 not found, skipping"
+fi
+
+# Remove gitauto.py script
+if [ -f "$USER_LOCAL_BIN2" ]; then
+    rm -f "$USER_LOCAL_BIN2"
+    print_success "Removed $USER_LOCAL_BIN2"
+else
+    print_info "$USER_LOCAL_BIN2 not found, skipping"
 fi
 
 # Remove virtual environment
